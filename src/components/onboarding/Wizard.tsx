@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { OnboardingShell } from './OnboardingShell';
 import { PrimaryButton } from './fields';
 import {
-  AccountStep, CreateProfileStep, PersonalStep, ReligiousStep, LocationStep,
-  ProfessionalStep, FamilyStep, BioStep, PhotosStep, PreviewStep,
+  AccountYouStep, AboutYouStep, WhereWorkStep, FamilyStoryStep, PhotosStep, ReviewStep,
 } from './steps';
 import { INITIAL_ONBOARDING_DATA } from '@/lib/onboarding/data';
 import type { OnboardingData } from '@/lib/onboarding/data';
@@ -25,23 +24,51 @@ import type {
 interface StepMeta {
   title: string;
   subtitle?: string;
-  androidStep: number | null; // draft.completedStep value; null = no draft (account)
   cta: string;
   valid: (d: OnboardingData, phone: string) => boolean;
 }
 
+// Web-native grouping: Android's ~9 single-concern screens consolidated into 5
+// content steps + review. All validation values come from the shared lib.
 const STEPS: StepMeta[] = [
-  { title: 'Create your account', subtitle: 'Your number secures your account and is never shown publicly.', androidStep: null, cta: 'Continue', valid: (_d, phone) => phone.replace(/\D/g, '').length >= 8 },
-  { title: 'Your profile', subtitle: 'Is this for yourself, or for a family member?', androidStep: 1, cta: 'Continue', valid: (d) => d.creatingFor !== '' && d.name.trim().length >= 2 },
-  { title: 'A few basics', subtitle: 'Age, height, and a few details that help families picture who you are.', androidStep: 2, cta: 'Continue', valid: (d) => d.dob !== '' && d.age > 0 && d.maritalStatus !== '' },
-  { title: 'Background', subtitle: 'Spiritual and cultural roots — how much they matter is yours to say.', androidStep: 3, cta: 'Continue', valid: (d) => d.horoscopePreference !== '' },
-  { title: 'Location', subtitle: 'Where you live helps families understand your daily world.', androidStep: 4, cta: 'Continue', valid: (d) => d.state !== '' && d.city.trim().length >= 2 },
-  { title: 'Your work', subtitle: 'Education and career offer a quiet sense of direction.', androidStep: 5, cta: 'Continue', valid: (d) => d.education !== '' && d.employmentType !== '' && d.profession.trim().length >= 2 },
-  { title: 'Your family', subtitle: 'Families read this to understand who you come from.', androidStep: 6, cta: 'Continue', valid: (d) => d.familyType !== '' },
-  { title: 'About yourself', subtitle: 'A few honest words go further than a polished description.', androidStep: 7, cta: 'Save & Continue', valid: (d) => d.bio.trim().length >= BIO_MIN_CHARS },
-  { title: 'Your photos', subtitle: 'Natural photos. Real light. The kind that show who you actually are.', androidStep: 8, cta: 'Preview Profile', valid: (d) => d.photos.length >= 1 },
-  { title: 'Your profile', subtitle: 'This is how families will see you. Take a moment to read it through.', androidStep: 8, cta: 'Complete Profile', valid: () => true },
+  {
+    title: 'Welcome — let’s set up your profile',
+    subtitle: 'A few grouped steps. Your progress saves automatically.',
+    cta: 'Continue',
+    valid: (d, phone) => phone.replace(/\D/g, '').length >= 8 && d.creatingFor !== '' && d.name.trim().length >= 2,
+  },
+  {
+    title: 'About you',
+    subtitle: 'Age, a few basics, and your cultural background — how much it matters is yours to say.',
+    cta: 'Continue',
+    valid: (d) => d.dob !== '' && d.age > 0 && d.maritalStatus !== '' && d.horoscopePreference !== '',
+  },
+  {
+    title: 'Where you are & what you do',
+    subtitle: 'Location and work give families a quiet sense of your daily world.',
+    cta: 'Continue',
+    valid: (d) => d.state !== '' && d.city.trim().length >= 2 && d.education !== '' && d.employmentType !== '' && d.profession.trim().length >= 2,
+  },
+  {
+    title: 'Family & your story',
+    subtitle: 'Who you come from, and a few honest words about who you are.',
+    cta: 'Continue',
+    valid: (d) => d.familyType !== '' && d.bio.trim().length >= BIO_MIN_CHARS,
+  },
+  {
+    title: 'Your photos',
+    subtitle: 'Natural photos. Real light. The kind that show who you actually are.',
+    cta: 'Review profile',
+    valid: (d) => d.photos.length >= 1,
+  },
+  {
+    title: 'Review & complete',
+    subtitle: 'This is how families will see you. Take a moment to read it through.',
+    cta: 'Complete Profile',
+    valid: () => true,
+  },
 ];
+const REVIEW = STEPS.length - 1;
 
 function hydrateFromDraft(draft: OnboardingDraft): OnboardingData {
   const base = INITIAL_ONBOARDING_DATA;
@@ -81,6 +108,12 @@ function hydrateFromDraft(draft: OnboardingDraft): OnboardingData {
   };
 }
 
+// Resume at the first step whose data isn't complete (robust to step regrouping).
+function firstIncomplete(data: OnboardingData, phone: string): number {
+  for (let i = 0; i < REVIEW; i++) if (!STEPS[i].valid(data, phone)) return i;
+  return REVIEW;
+}
+
 export function OnboardingWizard() {
   const router = useRouter();
   const [uid, setUid] = useState<string | null>(null);
@@ -91,7 +124,6 @@ export function OnboardingWizard() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Boot: establish session, resume any draft, skip the account step if already done.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -99,24 +131,18 @@ export function OnboardingWizard() {
         const user = await ensureAuth();
         if (cancelled) return;
         setUid(user.uid);
-
         const [existing, draft] = await Promise.all([
           fetchUser(user.uid).catch(() => null),
           loadOnboardingDraft(user.uid).catch(() => null),
         ]);
         if (cancelled) return;
-
-        if (existing?.isOnboarded) {
-          router.replace('/discover');
-          return;
-        }
-        if (existing?.phone) setPhone(existing.phone);
-
-        if (draft && draft.completedStep > 0) {
-          setData(hydrateFromDraft(draft));
-          setStepIndex(Math.min(draft.completedStep + 1, STEPS.length - 1));
-        } else if (existing?.phone) {
-          setStepIndex(1); // account already created — start at profile basics
+        if (existing?.isOnboarded) { router.replace('/discover'); return; }
+        const resumedPhone = existing?.phone ?? '';
+        if (resumedPhone) setPhone(resumedPhone);
+        if (draft) {
+          const hydrated = hydrateFromDraft(draft);
+          setData(hydrated);
+          setStepIndex(firstIncomplete(hydrated, resumedPhone));
         }
       } finally {
         if (!cancelled) setBooting(false);
@@ -136,23 +162,18 @@ export function OnboardingWizard() {
     if (!canContinue || busy || !uid) return;
     setError(null);
 
-    // Account step → write the users/{uid} doc with the phone number.
+    // Step 0 also captures the phone → create the users/{uid} doc.
     if (stepIndex === 0) {
       setBusy(true);
       try {
         await signInWithPhone(phone);
       } catch {
-        setBusy(false);
-        setError('Could not create your account. Please try again.');
-        return;
+        setBusy(false); setError('Could not create your account. Please try again.'); return;
       }
       setBusy(false);
-      setStepIndex(1);
-      return;
     }
 
-    // Final step → write the real Firestore documents Android also creates.
-    if (stepIndex === STEPS.length - 1) {
+    if (stepIndex === REVIEW) {
       setBusy(true);
       try {
         await completeProfile(uid, data);
@@ -164,16 +185,17 @@ export function OnboardingWizard() {
       return;
     }
 
-    // Persist a draft for the step just completed, then advance.
-    if (meta.androidStep) {
-      void saveOnboardingDraft(uid, data, meta.androidStep).catch(() => {});
-    }
+    // Autosave progress for this step, then advance.
+    void saveOnboardingDraft(uid, data, stepIndex).catch(() => {});
     setStepIndex((i) => i + 1);
   }
 
-  function handleBack() {
-    setError(null);
-    setStepIndex((i) => Math.max(i - 1, 0));
+  function handleKeyDown(e: React.KeyboardEvent) {
+    // Enter advances, except inside multiline inputs.
+    if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA' && canContinue && !busy) {
+      e.preventDefault();
+      void handleContinue();
+    }
   }
 
   if (booting || !uid) {
@@ -185,36 +207,37 @@ export function OnboardingWizard() {
   }
 
   return (
-    <OnboardingShell
-      step={stepIndex + 1}
-      totalSteps={STEPS.length}
-      title={meta.title}
-      subtitle={meta.subtitle}
-      onBack={stepIndex > 0 ? handleBack : undefined}
-      footer={
-        <>
-          <PrimaryButton onClick={handleContinue} disabled={!canContinue} loading={busy}>
-            {meta.cta}
-          </PrimaryButton>
-          {error && <p className="mt-2 text-center text-sm text-red-600">{error}</p>}
-          {stepIndex === STEPS.length - 1 && !error && (
-            <p className="mt-2 text-center text-xs text-stone-400">
-              Your profile will appear in Discover right away.
-            </p>
-          )}
-        </>
-      }
-    >
-      {stepIndex === 0 && <AccountStep phone={phone} setPhone={setPhone} />}
-      {stepIndex === 1 && <CreateProfileStep data={data} update={update} />}
-      {stepIndex === 2 && <PersonalStep data={data} update={update} />}
-      {stepIndex === 3 && <ReligiousStep data={data} update={update} />}
-      {stepIndex === 4 && <LocationStep data={data} update={update} />}
-      {stepIndex === 5 && <ProfessionalStep data={data} update={update} />}
-      {stepIndex === 6 && <FamilyStep data={data} update={update} />}
-      {stepIndex === 7 && <BioStep data={data} update={update} />}
-      {stepIndex === 8 && <PhotosStep data={data} update={update} uid={uid} />}
-      {stepIndex === 9 && <PreviewStep data={data} />}
-    </OnboardingShell>
+    <div onKeyDown={handleKeyDown}>
+      <OnboardingShell
+        step={stepIndex + 1}
+        totalSteps={STEPS.length}
+        title={meta.title}
+        subtitle={meta.subtitle}
+        onBack={stepIndex > 0 ? () => { setError(null); setStepIndex((i) => Math.max(i - 1, 0)); } : undefined}
+        footer={
+          <>
+            <div className="sm:ml-auto sm:w-64">
+              <PrimaryButton onClick={handleContinue} disabled={!canContinue} loading={busy}>{meta.cta}</PrimaryButton>
+            </div>
+            <div aria-live="polite" className="mt-2 text-center sm:text-right">
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              {!error && !canContinue && stepIndex !== REVIEW && (
+                <p className="text-xs text-stone-400">A few required fields are still empty.</p>
+              )}
+              {!error && stepIndex === REVIEW && (
+                <p className="text-xs text-stone-400">Your profile will appear in Discover right away.</p>
+              )}
+            </div>
+          </>
+        }
+      >
+        {stepIndex === 0 && <AccountYouStep data={data} update={update} phone={phone} setPhone={setPhone} />}
+        {stepIndex === 1 && <AboutYouStep data={data} update={update} />}
+        {stepIndex === 2 && <WhereWorkStep data={data} update={update} />}
+        {stepIndex === 3 && <FamilyStoryStep data={data} update={update} />}
+        {stepIndex === 4 && <PhotosStep data={data} update={update} uid={uid} />}
+        {stepIndex === 5 && <ReviewStep data={data} />}
+      </OnboardingShell>
+    </div>
   );
 }

@@ -22,9 +22,12 @@ export function AccountNav() {
   }
 
   return (
-    <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-700">
+    <Link
+      href="/profile"
+      className="flex items-center gap-1.5 text-sm font-medium text-stone-600 transition hover:text-stone-900"
+    >
       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-      Member
-    </span>
+      Profile
+    </Link>
   );
 }
