@@ -5,6 +5,8 @@ Firebase backend (`nairoot-app`). This log covers the website (`nairoot-web`);
 Android lives in `matrimony-app`. Dates are milestone completions.
 
 ## Unreleased — Beta Launch Prep (2026-06-27)
+### Changed
+- **Web beta auth: Phone OTP → Email + Password.** To keep the project on the Firebase **Spark (free) plan** for beta (Phone Auth SMS requires the Blaze/billing plan), `/login` now uses `createUserWithEmailAndPassword` / `signInWithEmailAndPassword`. Removed reCAPTCHA/Phone OTP from the web login. **No change** to the uid-based architecture (`AuthProvider`/`RequireAuth`/session), Firestore schema, or security rules. Requires the **Email/Password** provider enabled in the Firebase Console.
 ### Security
 - **Removed the open `/test` Firestore rule** (`allow read, write: if true`) and **redeployed** rules + indexes to live `nairoot-app`. Nothing in either client used `/test`.
 - **Gated developer-only routes for production:** `/dev/admin` and `/api/dev` respond **404** unless `DEV_ADMIN_ENABLED=true` (set locally, absent on production hosts). Verified in both states.

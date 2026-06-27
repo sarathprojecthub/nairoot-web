@@ -2,19 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { ConfirmationResult } from 'firebase/auth';
-import { startPhoneSignIn, confirmOtp, clearRecaptcha } from '@/lib/auth';
+import { signUpWithEmail, signInWithEmail } from '@/lib/auth';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
-const RECAPTCHA_ID = 'recaptcha-container';
+type Mode = 'signin' | 'signup';
 
 export default function LoginPage() {
   const router = useRouter();
   const { uid, isOnboarded, loading } = useCurrentUser();
-  const [phase, setPhase] = useState<'phone' | 'otp'>('phone');
-  const [phone, setPhone] = useState('');
-  const [code, setCode] = useState('');
-  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
+  const [mode, setMode] = useState<Mode>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,38 +22,27 @@ export default function LoginPage() {
     router.replace(isOnboarded ? '/discover' : '/onboarding');
   }, [loading, uid, isOnboarded, router]);
 
-  const phoneValid = /^\+\d{8,15}$/.test(phone.trim());
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const passwordValid = password.length >= 6;
+  const canSubmit = emailValid && passwordValid && !busy;
 
-  async function sendCode() {
-    if (!phoneValid || busy) return;
-    setBusy(true); setError(null);
+  async function submit() {
+    if (!canSubmit) return;
+    setBusy(true);
+    setError(null);
     try {
-      const conf = await startPhoneSignIn(phone.trim(), RECAPTCHA_ID);
-      setConfirmation(conf);
-      setPhase('otp');
-    } catch (e) {
-      clearRecaptcha();
-      setError(messageFor(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function verify() {
-    if (!confirmation || code.trim().length < 6 || busy) return;
-    setBusy(true); setError(null);
-    try {
-      await confirmOtp(confirmation, code.trim());
+      if (mode === 'signup') await signUpWithEmail(email.trim(), password);
+      else await signInWithEmail(email.trim(), password);
       // AuthProvider updates → the effect above redirects. Keep the spinner up.
     } catch (e) {
-      setError(messageFor(e));
+      setError(messageFor(e, mode));
       setBusy(false);
     }
   }
 
-  function reset() {
-    clearRecaptcha();
-    setPhase('phone'); setCode(''); setConfirmation(null); setError(null);
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError(null);
   }
 
   return (
@@ -67,84 +54,118 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-          {phase === 'phone' ? (
-            <>
-              <label htmlFor="login-phone" className="mb-2 block text-sm font-medium text-stone-600">
-                Mobile number
-              </label>
-              <input
-                id="login-phone"
-                type="tel"
-                inputMode="tel"
-                autoFocus
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/[^\d+]/g, '').slice(0, 16))}
-                onKeyDown={(e) => e.key === 'Enter' && sendCode()}
-                placeholder="+91 98765 43210"
-                className="w-full rounded-lg border border-stone-200 bg-white px-3.5 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
-              />
-              <p className="mt-1.5 text-xs text-stone-400">
-                Include your country code. We’ll text you a 6-digit code.
-              </p>
-              <button
-                onClick={sendCode}
-                disabled={!phoneValid || busy}
-                className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-stone-900 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
-              >
-                {busy && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
-                Send code
-              </button>
-            </>
-          ) : (
-            <>
-              <label htmlFor="login-otp" className="mb-2 block text-sm font-medium text-stone-600">
-                Enter the 6-digit code
-              </label>
-              <input
-                id="login-otp"
-                inputMode="numeric"
-                autoFocus
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                onKeyDown={(e) => e.key === 'Enter' && verify()}
-                placeholder="123456"
-                className="w-full rounded-lg border border-stone-200 bg-white px-3.5 py-3 text-center text-lg tracking-[0.4em] text-stone-900 outline-none transition placeholder:tracking-normal placeholder:text-stone-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
-              />
-              <p className="mt-1.5 text-xs text-stone-400">Sent to {phone}.</p>
-              <button
-                onClick={verify}
-                disabled={code.trim().length < 6 || busy}
-                className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-stone-900 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
-              >
-                {busy && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
-                Verify & continue
-              </button>
-              <button onClick={reset} className="mt-3 w-full text-center text-xs text-stone-400 hover:text-stone-600">
-                Use a different number
-              </button>
-            </>
+          {/* Mode toggle */}
+          <div className="mb-5 grid grid-cols-2 gap-1 rounded-full bg-stone-100 p-1 text-sm font-medium">
+            <button
+              type="button"
+              onClick={() => switchMode('signin')}
+              className={`rounded-full py-1.5 transition ${mode === 'signin' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              onClick={() => switchMode('signup')}
+              className={`rounded-full py-1.5 transition ${mode === 'signup' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
+            >
+              Create account
+            </button>
+          </div>
+
+          <label htmlFor="login-email" className="mb-2 block text-sm font-medium text-stone-600">
+            Email
+          </label>
+          <input
+            id="login-email"
+            type="email"
+            autoComplete="email"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submit()}
+            placeholder="you@example.com"
+            className="w-full rounded-lg border border-stone-200 bg-white px-3.5 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+          />
+
+          <label htmlFor="login-password" className="mb-2 mt-4 block text-sm font-medium text-stone-600">
+            Password
+          </label>
+          <input
+            id="login-password"
+            type="password"
+            autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submit()}
+            placeholder={mode === 'signup' ? 'At least 6 characters' : 'Your password'}
+            className="w-full rounded-lg border border-stone-200 bg-white px-3.5 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+          />
+          {mode === 'signup' && password.length > 0 && !passwordValid && (
+            <p className="mt-1.5 text-xs text-stone-400">Password must be at least 6 characters.</p>
           )}
 
+          <button
+            onClick={submit}
+            disabled={!canSubmit}
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-stone-900 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+          >
+            {busy && <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
+            {mode === 'signup' ? 'Create account' : 'Sign in'}
+          </button>
+
           {error && <p className="mt-3 text-center text-sm text-red-600">{error}</p>}
+
+          <p className="mt-4 text-center text-xs text-stone-500">
+            {mode === 'signin' ? (
+              <>New here?{' '}
+                <button type="button" onClick={() => switchMode('signup')} className="font-medium text-amber-700 hover:underline">
+                  Create an account
+                </button>
+              </>
+            ) : (
+              <>Already a member?{' '}
+                <button type="button" onClick={() => switchMode('signin')} className="font-medium text-amber-700 hover:underline">
+                  Sign in
+                </button>
+              </>
+            )}
+          </p>
         </div>
 
         <p className="mt-4 text-center text-xs leading-relaxed text-stone-400">
-          By continuing you agree this is a private, members-only community. Your number is never
+          By continuing you agree this is a private, members-only community. Your email is never
           shown on your profile.
         </p>
       </div>
-
-      {/* Invisible reCAPTCHA host (required by Firebase Phone Auth). */}
-      <div id={RECAPTCHA_ID} />
     </div>
   );
 }
 
-function messageFor(e: unknown): string {
+function messageFor(e: unknown, mode: Mode): string {
   const code = (e as { code?: string })?.code ?? '';
-  if (code === 'auth/invalid-phone-number') return 'That phone number looks invalid. Include the country code.';
-  if (code === 'auth/invalid-verification-code') return 'That code is incorrect. Please try again.';
-  if (code === 'auth/code-expired') return 'That code expired. Request a new one.';
-  if (code === 'auth/too-many-requests') return 'Too many attempts. Please wait a little and try again.';
-  return e instanceof Error ? e.message : 'Something went wrong. Please try again.';
+  switch (code) {
+    case 'auth/email-already-in-use':
+      return 'An account with this email already exists. Try signing in instead.';
+    case 'auth/invalid-email':
+      return 'Enter a valid email address.';
+    case 'auth/weak-password':
+      return 'Password is too weak — use at least 6 characters.';
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return mode === 'signin'
+        ? 'Incorrect email or password.'
+        : 'Those credentials are invalid. Please check and try again.';
+    case 'auth/user-not-found':
+      return 'No account found for this email. Create one instead.';
+    case 'auth/user-disabled':
+      return 'This account has been disabled.';
+    case 'auth/too-many-requests':
+      return 'Too many attempts. Please wait a little and try again.';
+    case 'auth/network-request-failed':
+      return 'Network error. Check your connection and try again.';
+    case 'auth/operation-not-allowed':
+      return 'Email/password sign-in is not enabled for this project.';
+    default:
+      return e instanceof Error ? e.message : 'Something went wrong. Please try again.';
+  }
 }
