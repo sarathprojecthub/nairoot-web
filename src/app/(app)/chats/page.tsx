@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useConversations } from '@/hooks/useConversations';
 import { ProfilePhoto } from '@/components/ProfilePhoto';
+import { PageSpinner } from '@/components/ui/Loading';
 
 function timeShort(ms: number): string {
   if (!ms) return '';
@@ -22,7 +23,7 @@ export default function ChatsPage() {
       <h1 className="mb-6 text-2xl font-semibold tracking-tight text-stone-900">Chats</h1>
 
       {loading ? (
-        <p className="text-sm text-stone-400">Loading…</p>
+        <PageSpinner />
       ) : items.length === 0 ? (
         <p className="rounded-xl border border-dashed border-stone-200 px-4 py-12 text-center text-sm text-stone-400">
           No conversations yet. Accept an introduction to start chatting.

@@ -56,7 +56,7 @@ Authoritative TS types: `matrimony-app/src/types/db.ts`. All timestamps are **Un
 
 ---
 
-## 4. Website status — **core flows built (M0–M5)**
+## 4. Website status — **first-class client, beta-ready (M0–M6)**
 
 `nairoot-web/` — Next 16, React 19, Tailwind v4, Firebase JS SDK → project `nairoot-app`.
 
@@ -64,9 +64,10 @@ Authoritative TS types: `matrimony-app/src/types/db.ts`. All timestamps are **Un
 - **Send Interest**: writes `introductions` with the exact Android schema (omits `note`); dedupe; realtime "Interest Sent ✓".
 - **Introductions** (`/introductions`): Received/Sent, Accept/Decline; **accept mirrors Android's transaction exactly** (creates `conversation` + `match`, sets intro `accepted`).
 - **Chats** (`/chats`, `/chats/[id]`): conversations list, realtime messages, composer, auto-scroll, unread — a verbatim mirror of Android `conversationService`.
-- **Onboarding** (`/onboarding`): full multi-step wizard (account/phone → personal → religious → location → professional → family → bio → photos → preview → Complete Profile), responsive desktop/mobile. **Mirrors the Android onboarding as source of truth** — same fields, same validation, same per-step `onboardingDrafts/{uid}` resume, same `users/{uid}` + `profiles/{uid}` write shape (`src/lib/onboarding/*`, ported from Android `onboardingStore`/`profileQualityService`/`preview.tsx`). Photos reuse the **same Cloudinary** unsigned preset as Android. Completed profiles set `isVisible:true` + numeric `age` + `createdAt`, so they appear immediately in **both** Android and Website Discover.
-- Auth: **anonymous-first + phone** (reuses Android's model — `signInAnonymously()` then phone on `users/{uid}`; no separate auth system). Persisted in browser. Header shows a "Complete profile" CTA / "Member" marker; a JoinBanner nudges un-onboarded users.
-- Verified bidirectional Website↔Android interop for discover/interest/accept/chat **and onboarding** (`scripts/verify-onboarding.mjs`: new web member is discoverable + interest round-trips both ways).
+- **Onboarding** (`/onboarding`): web-native multi-step wizard — **6 grouped steps** (profile basics → about → where & work → family & story → photos → review), responsive desktop/mobile, autosave + furthest-incomplete resume, keyboard-friendly. The **business logic is ported from Android** (`src/lib/onboarding/*` from `onboardingStore`/`profileQualityService`/`preview.tsx`) — same fields, validation, `onboardingDrafts/{uid}` resume, and `users/{uid}` + `profiles/{uid}` write shape. Photos reuse the **same Cloudinary** unsigned preset. Completed profiles set `isVisible:true` + numeric `age` + `createdAt` → appear immediately in **both** Android and Website Discover.
+- **Profile editing** (`/profile`): edit fields, manage photos, toggle visibility — rules-safe updates (never writes `profileQuality`/`verifiedFields`/`isPremium`/`isConcierge`).
+- Auth: **production Phone OTP (M6)** — `signInWithPhoneNumber` + invisible reCAPTCHA → a **stable uid per phone**, so a returning member always reconnects to the same profile. Persistent (IndexedDB) across sessions; **require-login** gate (no anonymous browsing); `AuthProvider` + `RequireAuth` route guards; logout/login. **No schema/rule changes** — a phone-auth uid is identical to the rules. `MIGRATION_M6.md` documents the flow.
+- Verified bidirectional Website↔Android interop for discover/interest/accept/chat/onboarding (`scripts/verify-*.mjs`), and stable phone identity via the Auth emulator (`verify-phone-auth.mjs`).
 
 ---
 
@@ -77,7 +78,10 @@ Authoritative TS types: `matrimony-app/src/types/db.ts`. All timestamps are **Un
 - **M2** — Website **Send Interest** → writes `introductions`; verified Website→Android.
 - **M3** — Website **Introductions & Accept** (conversation + match creation); verified Android↔Website matching.
 - **M4** — Website **Chats** (realtime, cross-platform); verified Website↔Website and Website↔Android.
-- **M5** — Website **Auth & Onboarding**: brand-new users join entirely from the web (anonymous+phone), complete the full Android-mirrored onboarding, and become normal members. Writes identical `users/{uid}` + `profiles/{uid}` docs; profile appears in Android **and** Website Discover; interest works both directions; no Android regressions. TSC + `next build` clean.
+- **M5** — Website **Auth & Onboarding** (then restructured into a web-native 6-step wizard) + **profile editing**. Android-identical profile writes; cross-platform discovery + interest verified.
+- **P1 / QA / RC1** — internal dev-admin console (server-only, rules-bypassing via firebase-tools token); full QA regression (30/30 across And↔And/And↔Web/Web↔Web); tagged **`RC1`** in both repos as the rollback point.
+- **M6** — Website **Production Authentication**: anonymous → **Phone OTP**, stable portable uid, persistent session, require-login gate, logout/login. No schema/rule changes; interop preserved. Verified (identity 6/6 emulator + live flow suites).
+- **Beta Launch Prep** — removed the open `/test` Firestore rule + **redeployed rules & indexes**; gated `/dev/admin`+`/api/dev` to 404 in production (`DEV_ADMIN_ENABLED`); strip `console.log/info` from Android release builds; verified Cloudinary upload + Phone-Auth provider enabled. Full regression green under tightened rules. See `BETA_LAUNCH_REPORT.md` → **GO (conditional on deploy actions)**.
 - **Android Stability & SDK Completion** — migrated conversation realtime listeners (`conversationService`) to native RNFirebase; **no JS-SDK realtime in steady state**; no "Unexpected state" assertions; no connection banner; Discover/Introductions/Chats regression-passed.
 
 ---

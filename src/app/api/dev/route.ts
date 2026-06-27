@@ -22,7 +22,17 @@ export const dynamic = 'force-dynamic';
 
 type Body = { action?: string; payload?: Record<string, unknown> };
 
+// The dev-admin API is enabled ONLY when DEV_ADMIN_ENABLED=true is present in the
+// environment (set in local .env.local; intentionally absent on production hosts).
+// In production the route responds 404, as if it does not exist.
+function devAdminEnabled(): boolean {
+  return process.env.DEV_ADMIN_ENABLED === 'true';
+}
+
 export async function POST(req: Request) {
+  if (!devAdminEnabled()) {
+    return NextResponse.json({ ok: false, error: 'Not found' }, { status: 404 });
+  }
   try {
     assertDevSecret(req.headers.get('x-dev-secret'));
 

@@ -9,6 +9,7 @@ import { fetchConversation, sendMessage } from '@/lib/chat';
 import { fetchProfile } from '@/lib/profiles';
 import type { Conversation, Profile } from '@/lib/types';
 import { ProfilePhoto } from '@/components/ProfilePhoto';
+import { PageSpinner } from '@/components/ui/Loading';
 
 function timeShort(ms: number): string {
   return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -86,7 +87,7 @@ export default function ConversationPage() {
       {/* Messages */}
       <div className="flex-1 space-y-2 overflow-y-auto py-4">
         {loading ? (
-          <p className="text-center text-sm text-stone-400">Loading…</p>
+          <PageSpinner />
         ) : messages.length === 0 ? (
           <p className="text-center text-sm text-stone-400">No messages yet. Say hello.</p>
         ) : (

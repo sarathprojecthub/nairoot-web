@@ -2,6 +2,7 @@
 
 import { useIntroductions } from '@/hooks/useIntroductions';
 import { IntroductionRow } from '@/components/IntroductionRow';
+import { PageSpinner } from '@/components/ui/Loading';
 
 function Section({
   title,
@@ -32,9 +33,10 @@ export default function IntroductionsPage() {
 
   if (loading) {
     return (
-      <div>
-        <h1 className="mb-6 text-2xl font-semibold tracking-tight text-stone-900">Introductions</h1>
-        <p className="text-sm text-stone-400">Loading…</p>
+      <div className="max-w-3xl">
+        <h1 className="mb-1 text-2xl font-semibold tracking-tight text-stone-900">Introductions</h1>
+        <p className="mb-8 text-sm text-stone-500">Your active introductions, updated live.</p>
+        <PageSpinner />
       </div>
     );
   }

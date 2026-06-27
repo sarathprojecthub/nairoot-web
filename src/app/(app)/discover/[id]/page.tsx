@@ -7,6 +7,7 @@ import { fetchProfile } from '@/lib/profiles';
 import type { Profile } from '@/lib/types';
 import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { SendInterestButton } from '@/components/SendInterestButton';
+import { PageSpinner } from '@/components/ui/Loading';
 
 function Field({ label, value }: { label: string; value?: string }) {
   if (!value) return null;
@@ -68,7 +69,7 @@ export default function ProfileDetailPage() {
         ← Back to Discover
       </Link>
 
-      {state === 'loading' && <p className="text-sm text-stone-400">Loading…</p>}
+      {state === 'loading' && <PageSpinner />}
       {state === 'notfound' && <p className="text-sm text-stone-500">This profile is no longer available.</p>}
       {state === 'error' && <p className="text-sm text-red-600">Could not load profile: {error}</p>}
 
