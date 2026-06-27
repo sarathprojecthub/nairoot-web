@@ -1,7 +1,15 @@
-import { OnboardingWizard } from '@/components/onboarding/Wizard';
+'use client';
 
-// Full-screen onboarding — deliberately outside the (app) layout so it gets no
-// top nav. A brand-new user joins entirely here and lands in Discover on finish.
+import { OnboardingWizard } from '@/components/onboarding/Wizard';
+import { RequireAuth } from '@/components/RequireAuth';
+
+// Full-screen onboarding — outside the (app) shell (no top nav). Requires a
+// signed-in member (identity comes from Phone-Auth login); the wizard itself
+// redirects already-onboarded members to Discover.
 export default function OnboardingPage() {
-  return <OnboardingWizard />;
+  return (
+    <RequireAuth requireOnboarded={false}>
+      <OnboardingWizard />
+    </RequireAuth>
+  );
 }

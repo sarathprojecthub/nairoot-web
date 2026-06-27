@@ -2,7 +2,7 @@
 //   profiles where isVisible == true, orderBy createdAt desc, limit, startAfter
 // (see Android discoverService.ts). Reads only; no writes in M1.
 import { auth, db } from './firebase';
-import { signInAnonymously, onAuthStateChanged, type User } from 'firebase/auth';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import {
   collection,
   query,
@@ -24,20 +24,18 @@ export const PAGE_SIZE = 24;
 
 export type Cursor = QueryDocumentSnapshot<DocumentData> | null;
 
-// Firestore Security Rules require an authenticated request. The Android app
-// signs in anonymously; the web client does the same until real auth (M-auth).
+// Firestore Security Rules require an authenticated request. Production web auth
+// is Phone OTP (see lib/auth.ts) — there is NO anonymous fallback. App pages are
+// behind a login guard, so callers here always run with a signed-in user; this
+// resolves the current user (waiting once for the initial auth state) or rejects
+// with 'not_authenticated' if somehow called while signed out.
 export function ensureAuth(): Promise<User> {
   if (auth.currentUser) return Promise.resolve(auth.currentUser);
   return new Promise<User>((resolve, reject) => {
     const unsub = onAuthStateChanged(auth, (u) => {
-      if (u) {
-        unsub();
-        resolve(u);
-      }
-    });
-    signInAnonymously(auth).catch((e) => {
       unsub();
-      reject(e);
+      if (u) resolve(u);
+      else reject(new Error('not_authenticated'));
     });
   });
 }

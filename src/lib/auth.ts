@@ -1,21 +1,65 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Website authentication — reuses the EXISTING Android auth model:
-//   anonymous-first session (signInAnonymously) + phone captured on the
-//   users/{uid} document. No separate auth system.
+// Website production authentication — Firebase Phone Auth (OTP).
 //
-// Mirrors Android src/services/authService.ts signInWithPhone():
-//   ensure an anonymous Firebase Auth session → createUserDoc(uid, phone).
-// The anonymous session persists in the browser (IndexedDB), so the uid is
-// stable per-browser — the same uid that owns the profile, introductions, and
-// conversations the user creates.
+// Replaces the previous anonymous-first model. A verified phone number maps to a
+// STABLE Firebase Auth uid (Firebase guarantees the same uid for the same phone),
+// so a returning member always reconnects to the same users/{uid} + profiles/{uid}
+// — across browsers and devices. Session persistence is handled by the SDK
+// (getAuth → IndexedDB), so login survives refresh/close.
+//
+// No Firestore schema/rule changes: the resulting uid is an ordinary
+// `request.auth.uid`, identical in the rules to the anonymous uid it replaces, so
+// Discover / Introductions / Matches / Chats / Profile-editing are unaffected and
+// remain interoperable with the Android (anonymous-first) client.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { ensureAuth } from './profiles';
+import {
+  RecaptchaVerifier, signInWithPhoneNumber, signOut, type ConfirmationResult,
+} from 'firebase/auth';
+import { auth } from './firebase';
 import { createUserDoc } from './user';
 
-/** Establish the session and write the private user doc with the phone number. */
-export async function signInWithPhone(phone: string): Promise<string> {
-  const user = await ensureAuth();
-  await createUserDoc(user.uid, phone);
-  return user.uid;
+// Invisible reCAPTCHA — required by Firebase Phone Auth on web. Kept as a module
+// singleton so re-renders don't create duplicate widgets.
+let verifier: RecaptchaVerifier | null = null;
+
+function getVerifier(containerId: string): RecaptchaVerifier {
+  if (!verifier) {
+    verifier = new RecaptchaVerifier(auth, containerId, { size: 'invisible' });
+  }
+  return verifier;
+}
+
+export function clearRecaptcha(): void {
+  try { verifier?.clear(); } catch { /* ignore */ }
+  verifier = null;
+}
+
+/** Step 1: send an OTP to the phone number (E.164, e.g. +9198…). */
+export async function startPhoneSignIn(
+  phoneE164: string,
+  recaptchaContainerId: string,
+): Promise<ConfirmationResult> {
+  return signInWithPhoneNumber(auth, phoneE164, getVerifier(recaptchaContainerId));
+}
+
+/**
+ * Step 2: confirm the OTP. Returns the stable uid. Ensures the private
+ * users/{uid} doc exists (idempotent — created on first login with the verified
+ * phone, untouched for returning members).
+ */
+export async function confirmOtp(
+  confirmation: ConfirmationResult,
+  code: string,
+): Promise<string> {
+  const cred = await confirmation.confirm(code);
+  const uid = cred.user.uid;
+  await createUserDoc(uid, cred.user.phoneNumber ?? '');
+  return uid;
+}
+
+/** Sign out and tear down the reCAPTCHA widget. */
+export async function logout(): Promise<void> {
+  clearRecaptcha();
+  await signOut(auth);
 }

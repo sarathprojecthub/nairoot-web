@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  FieldLabel, FieldError, Hint, Chip, ChipGroup, TextField, TextArea, OptionCard,
+  FieldLabel, FieldError, Chip, ChipGroup, TextField, TextArea, OptionCard,
 } from './fields';
 import { ProfilePhoto } from '../ProfilePhoto';
 import {
@@ -38,26 +38,10 @@ function Group({ title, children }: { title?: string; children: React.ReactNode 
   );
 }
 
-// ─── Step 1 — Account & you ───────────────────────────────────────────────────
-export function AccountYouStep({
-  data, update, phone, setPhone,
-}: StepProps & { phone: string; setPhone: (v: string) => void }) {
+// ─── Step 1 — Profile basics (identity/phone already verified at login) ───────
+export function ProfileBasicsStep({ data, update }: StepProps) {
   return (
     <div>
-      <Group title="Account">
-        <Cell>
-          <FieldLabel required>Mobile number</FieldLabel>
-          <TextField
-            value={phone}
-            onChange={(v) => setPhone(v.replace(/[^\d+]/g, '').slice(0, 15))}
-            placeholder="e.g. +91 98765 43210"
-            inputMode="tel"
-            autoFocus
-          />
-          <Hint>Secures your account. Never shown on your public profile.</Hint>
-        </Cell>
-      </Group>
-
       <Group title="Who this profile is for">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {CREATING_FOR_OPTIONS.map((opt) => (
@@ -72,7 +56,7 @@ export function AccountYouStep({
         </div>
         <div className="mt-6">
           <FieldLabel required>Full name</FieldLabel>
-          <TextField value={data.name} onChange={(v) => update({ name: v })} placeholder="e.g. Priya Nair" />
+          <TextField value={data.name} onChange={(v) => update({ name: v })} placeholder="e.g. Priya Nair" autoFocus />
         </div>
       </Group>
     </div>
