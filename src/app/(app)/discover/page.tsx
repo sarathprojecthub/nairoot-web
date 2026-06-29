@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useDiscover } from '@/hooks/useDiscover';
 import { useSentInterests } from '@/hooks/useSentInterests';
@@ -127,8 +127,32 @@ export default function DiscoverPage() {
   const [draft, setDraft] = useState<Filters>(DEFAULT_FILTERS);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
+  // "Refine preferences" → on desktop (xl+) the filter panel is already visible,
+  // so scroll it into view and pulse it; on smaller screens open the drawer.
+  const filterColRef = useRef<HTMLDivElement>(null);
+  const [pulseFilters, setPulseFilters] = useState(false);
+  const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (pulseTimer.current) clearTimeout(pulseTimer.current); }, []);
+
+  function handleRefine() {
+    const desktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 1280px)').matches;
+    if (desktop && filterColRef.current) {
+      filterColRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setPulseFilters(true);
+      if (pulseTimer.current) clearTimeout(pulseTimer.current);
+      pulseTimer.current = setTimeout(() => setPulseFilters(false), 1100);
+    } else {
+      setMobileFiltersOpen(true);
+    }
+  }
+
   function applyFilters() {
-    setApplied(draft);
+    // Normalise/clamp age only here (not on every keystroke) so min ≤ max always.
+    const lo = Math.min(Math.max(draft.ageMin || 18, 18), 99);
+    const hi = Math.min(Math.max(draft.ageMax || 70, 18), 99);
+    const norm: Filters = { ...draft, ageMin: Math.min(lo, hi), ageMax: Math.max(lo, hi) };
+    setDraft(norm);
+    setApplied(norm);
     setMobileFiltersOpen(false);
   }
   function clearFilters() {
@@ -193,6 +217,7 @@ export default function DiscoverPage() {
       options={options}
       onApply={applyFilters}
       onClear={clearFilters}
+      highlight={pulseFilters}
     />
   );
 
@@ -201,7 +226,7 @@ export default function DiscoverPage() {
 
       {/* ── Left sidebar ─────────────────────────────────────────────────── */}
       <aside className="hidden lg:block">
-        <div className="sticky top-24 space-y-4">
+        <div className="sticky top-24 max-h-[calc(100vh-7rem)] space-y-4 overflow-y-auto overscroll-contain pr-1">
           <DiscoverSidebar
             pendingCount={pendingCount}
             likesSent={sentTo.size}
@@ -213,7 +238,7 @@ export default function DiscoverPage() {
       {/* ── Main column ──────────────────────────────────────────────────── */}
       <main className="min-w-0">
         <PendingInterestBanner />
-        <DiscoverHero onRefine={() => setMobileFiltersOpen(true)} />
+        <DiscoverHero onRefine={handleRefine} />
 
         {/* Tabs + sort */}
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -274,12 +299,15 @@ export default function DiscoverPage() {
           )}
         </div>
 
-        <DiscoverTrustStrip />
+        <DiscoverHowItWorks />
       </main>
 
-      {/* ── Right filter column (desktop xl+) ────────────────────────────── */}
+      {/* ── Right filter column (desktop xl+) — own scroll area ──────────── */}
       <aside className="hidden xl:block">
-        <div className="sticky top-24 space-y-4">
+        <div
+          ref={filterColRef}
+          className="sticky top-24 max-h-[calc(100vh-7rem)] space-y-4 overflow-y-auto overscroll-contain pr-1"
+        >
           <TrustCard profiles={visible} />
           {filterPanel}
         </div>
@@ -350,7 +378,6 @@ function DiscoverSidebar({ pendingCount, likesSent, matches }: { pendingCount: n
           <ActivityRow label="Likes sent" value={likesSent} />
           <ActivityRow label="Interested in you" value={pendingCount} />
           <ActivityRow label="Matches" value={matches} />
-          <ActivityRow label="Replies" value="—" />
         </dl>
         <p className="mt-3 text-[11px] leading-relaxed text-muted">
           Counts update live as members respond.
@@ -424,7 +451,7 @@ function DiscoverHero({ onRefine }: { onRefine: () => void }) {
             Discover people who share your values
           </h1>
           <p className="mt-2.5 max-w-md text-sm leading-relaxed text-ink/70">
-            Handpicked profiles that match your preferences and life goals.
+            A considered set of profiles to explore — shown with your preferences in mind.
           </p>
           <div className="mt-5 flex flex-wrap gap-2.5">
             <button
@@ -465,7 +492,7 @@ function DiscoverHero({ onRefine }: { onRefine: () => void }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'all', label: 'All Matches' },
+  { id: 'all', label: 'All' },
   { id: 'new', label: 'New This Week' },
   { id: 'active', label: 'Recently Active' },
   { id: 'shortlisted', label: 'Shortlisted' },
@@ -498,7 +525,7 @@ function DiscoverTabs({ tab, setTab, counts }: { tab: TabId; setTab: (t: TabId) 
 }
 
 const SORTS: { id: SortId; label: string }[] = [
-  { id: 'best', label: 'Best Match' },
+  { id: 'best', label: 'Recommended' },
   { id: 'newest', label: 'Newest' },
   { id: 'age_asc', label: 'Age: Low to High' },
   { id: 'age_desc', label: 'Age: High to Low' },
@@ -549,7 +576,7 @@ function DiscoverCard({
       <button
         onClick={onToggleShortlist}
         aria-label={shortlisted ? 'Remove from shortlist' : 'Add to shortlist'}
-        className={`absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border shadow-soft backdrop-blur transition ${
+        className={`absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full border shadow-soft backdrop-blur transition ${
           shortlisted
             ? 'border-gold/50 bg-gold/90 text-cream'
             : 'border-line bg-cream/85 text-ink/60 hover:text-maroon'
@@ -688,18 +715,24 @@ function FilterPanel({
   options,
   onApply,
   onClear,
+  highlight,
 }: {
   draft: Filters;
   setDraft: (f: Filters) => void;
   options: { location: string[]; community: string[]; education: string[]; profession: string[]; height: string[] };
   onApply: () => void;
   onClear: () => void;
+  highlight?: boolean;
 }) {
   const [showMore, setShowMore] = useState(false);
   const set = (patch: Partial<Filters>) => setDraft({ ...draft, ...patch });
 
   return (
-    <div className="overflow-hidden rounded-3xl bg-gradient-to-b from-[#3a0a18] to-[#250713] p-5 text-cream shadow-card">
+    <div
+      className={`overflow-hidden rounded-3xl bg-gradient-to-b from-[#3a0a18] to-[#250713] p-5 text-cream shadow-card transition-shadow duration-700 ${
+        highlight ? 'shadow-[inset_0_0_0_2px_rgba(216,180,106,0.9)]' : ''
+      }`}
+    >
       <div className="flex items-center justify-between">
         <p className="font-serif text-base font-semibold">Refine your search</p>
         <button onClick={onClear} className="text-xs font-medium text-gold-soft hover:underline">Clear all</button>
@@ -709,9 +742,9 @@ function FilterPanel({
       <div className="mt-4">
         <FilterLabel>Age</FilterLabel>
         <div className="flex items-center gap-2">
-          <NumberField value={draft.ageMin} min={18} max={draft.ageMax} onChange={(v) => set({ ageMin: v })} />
+          <NumberField ariaLabel="Minimum age" value={draft.ageMin} min={18} max={draft.ageMax} onChange={(v) => set({ ageMin: v })} />
           <span className="text-cream/40">–</span>
-          <NumberField value={draft.ageMax} min={draft.ageMin} max={99} onChange={(v) => set({ ageMax: v })} />
+          <NumberField ariaLabel="Maximum age" value={draft.ageMax} min={draft.ageMin} max={99} onChange={(v) => set({ ageMax: v })} />
         </div>
       </div>
 
@@ -759,17 +792,31 @@ function FilterLabel({ children }: { children: ReactNode }) {
   return <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gold-soft/80">{children}</p>;
 }
 
-function NumberField({ value, min, max, onChange }: { value: number; min: number; max: number; onChange: (v: number) => void }) {
+// Age input that lets you type freely (incl. blank/partial) and only
+// parses + clamps on blur / Enter — no "typing fight" with the value.
+function NumberField({ value, min, max, onChange, ariaLabel }: { value: number; min: number; max: number; onChange: (v: number) => void; ariaLabel: string }) {
+  const [raw, setRaw] = useState(String(value));
+  useEffect(() => { setRaw(String(value)); }, [value]);
+
+  function commit() {
+    const n = parseInt(raw, 10);
+    if (Number.isNaN(n)) { setRaw(String(value)); return; } // revert blanks/garbage
+    const clamped = Math.min(Math.max(n, min), max);
+    setRaw(String(clamped));
+    if (clamped !== value) onChange(clamped);
+  }
+
   return (
     <input
       type="number"
-      value={value}
-      min={min}
-      max={max}
-      onChange={(e) => {
-        const n = parseInt(e.target.value, 10);
-        if (!Number.isNaN(n)) onChange(Math.min(Math.max(n, 18), 99));
-      }}
+      inputMode="numeric"
+      aria-label={ariaLabel}
+      value={raw}
+      min={18}
+      max={99}
+      onChange={(e) => setRaw(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
       className="w-full rounded-lg border border-cream/15 bg-cream/10 px-2.5 py-1.5 text-sm text-cream outline-none focus:border-gold/60"
     />
   );
@@ -781,6 +828,7 @@ function SelectField({ label, value, options, onChange, anyLabel, embedded }: { 
       <FilterLabel>{label}</FilterLabel>
       <select
         value={value}
+        aria-label={label}
         onChange={(e) => onChange(e.target.value)}
         className="w-full cursor-pointer rounded-lg border border-cream/15 bg-cream/10 px-2.5 py-2 text-sm text-cream outline-none focus:border-gold/60"
       >
@@ -794,28 +842,46 @@ function SelectField({ label, value, options, onChange, anyLabel, embedded }: { 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Bottom trust strip
+// "A quieter way to discover" — premium, product-specific closing section
 // ─────────────────────────────────────────────────────────────────────────────
 
-function DiscoverTrustStrip() {
-  const items = [
-    { icon: <TargetIcon className="h-5 w-5 text-maroon" />, title: 'Smart Matches', body: 'Filters help surface profiles aligned with your preferences.' },
-    { icon: <ShieldIcon className="h-5 w-5 text-maroon" />, title: 'Privacy First', body: 'Your information is protected and never shown casually.' },
-    { icon: <HeartIcon className="h-5 w-5 text-maroon" />, title: 'Meaningful Introductions', body: 'We focus on quality over quantity.' },
-    { icon: <SparkleIcon className="h-5 w-5 text-maroon" />, title: 'Premium Tools', body: 'Advanced filters and priority features are coming soon.' },
+function DiscoverHowItWorks() {
+  const steps = [
+    { n: 1, title: 'Review with context', body: 'See the essentials before opening a profile.' },
+    { n: 2, title: 'Shortlist privately', body: 'Save profiles for later without notifying anyone.' },
+    { n: 3, title: 'Send one clear interest', body: 'Start only the introductions you genuinely want.' },
   ];
   return (
-    <div className="mt-10 rounded-3xl border border-line bg-cream/80 p-6 shadow-soft">
-      <div className="grid grid-cols-1 gap-6 divide-line sm:grid-cols-2 sm:divide-x lg:grid-cols-4">
-        {items.map((it) => (
-          <div key={it.title} className="px-1 sm:px-4">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full border border-gold/30 bg-ivory">{it.icon}</span>
-            <p className="mt-3 text-sm font-semibold text-charcoal">{it.title}</p>
-            <p className="mt-1 text-xs leading-relaxed text-muted">{it.body}</p>
-          </div>
-        ))}
+    <section className="mt-10 overflow-hidden rounded-3xl border border-line bg-cream shadow-card">
+      <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] lg:gap-12">
+        <div className="lg:self-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gold">How discovery works</p>
+          <h2 className="mt-3 font-serif text-2xl font-semibold tracking-tight text-charcoal">A quieter way to discover</h2>
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-ink/70">
+            Profiles are intentionally shown in a smaller, more considered set — so every
+            introduction feels easier to evaluate.
+          </p>
+          <p className="mt-5 flex items-start gap-2 text-xs leading-relaxed text-muted">
+            <ShieldIcon className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+            Your browsing stays private. Interests are shared only when you choose to send one.
+          </p>
+        </div>
+
+        <ol className="space-y-3.5">
+          {steps.map((s) => (
+            <li key={s.n} className="flex items-start gap-4 rounded-2xl border border-line bg-ivory/50 px-5 py-4 transition hover:border-gold/40">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gold/45 bg-gold/10 font-serif text-sm font-semibold text-[#8a6a37]">
+                {s.n}
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-charcoal">{s.title}</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted">{s.body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -847,9 +913,6 @@ function ShieldIcon({ className }: IconProps) {
 }
 function SparkleIcon({ className }: IconProps) {
   return <svg viewBox="0 0 24 24" className={className} {...stroke}><path d="M12 3.5 13.6 9 19 10.6 13.6 12.2 12 17.6 10.4 12.2 5 10.6 10.4 9 12 3.5Z" /></svg>;
-}
-function TargetIcon({ className }: IconProps) {
-  return <svg viewBox="0 0 24 24" className={className} {...stroke}><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="4" /><circle cx="12" cy="12" r="0.6" fill="currentColor" /></svg>;
 }
 function CompassIcon({ className }: IconProps) {
   return <svg viewBox="0 0 24 24" className={className} {...stroke}><circle cx="12" cy="12" r="8.5" /><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z" /></svg>;
