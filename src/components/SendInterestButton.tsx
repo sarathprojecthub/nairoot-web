@@ -25,7 +25,6 @@ export function SendInterestButton({ profileId }: { profileId: string }) {
       await sendInterest(profileId);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      // Benign duplicates: keep the "sent" state (the doc exists / will exist).
       if (msg !== 'interest_already_sent' && msg !== 'already_matched') {
         setOptimistic(false);
         setError('Could not send interest. Please try again.');
@@ -37,12 +36,9 @@ export function SendInterestButton({ profileId }: { profileId: string }) {
 
   if (sent) {
     return (
-      <button
-        disabled
-        className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-6 py-2.5 text-sm font-semibold text-emerald-700"
-      >
-        Interest Sent ✓
-      </button>
+      <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-6 py-3 text-sm font-semibold text-emerald-700">
+        ✓ Interest sent
+      </span>
     );
   }
 
@@ -51,9 +47,9 @@ export function SendInterestButton({ profileId }: { profileId: string }) {
       <button
         onClick={handleSend}
         disabled={sending || !ready}
-        className="inline-flex items-center gap-2 rounded-full bg-stone-900 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-full bg-maroon px-7 py-3 text-sm font-semibold text-cream shadow-soft transition hover:bg-maroon-deep disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {sending ? 'Sending…' : 'Send Interest'}
+        {sending ? 'Sending…' : 'Express interest'}
       </button>
       {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
     </div>

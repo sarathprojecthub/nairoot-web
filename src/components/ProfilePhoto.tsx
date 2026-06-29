@@ -2,16 +2,15 @@
 
 import { useState } from 'react';
 
-// Plain <img> (not next/image) so any Firebase Storage URL works without
-// configuring remotePatterns. Falls back to a tasteful initial-on-gradient
-// placeholder when a profile has no photo or the URL fails to load — common
-// for the existing test profiles.
+// Plain <img> (not next/image) so any Cloudinary/Storage URL works without
+// remotePatterns config. Falls back to a warm, premium initial-on-gradient
+// placeholder — muted ivory/gold tones (never bright/playful) with a serif mark.
 const GRADIENTS = [
-  'from-rose-200 to-amber-200',
-  'from-amber-200 to-orange-200',
-  'from-stone-200 to-rose-200',
-  'from-emerald-200 to-teal-200',
-  'from-indigo-200 to-rose-200',
+  'from-[#efe3cf] to-[#e0c8a4]',
+  'from-[#ecd9d1] to-[#d6b6a0]',
+  'from-[#e8ddc8] to-[#cdb389]',
+  'from-[#ead9cf] to-[#c8a78f]',
+  'from-[#efe7d4] to-[#d7c29b]',
 ];
 
 function gradientFor(seed: string): string {
@@ -42,7 +41,7 @@ export function ProfilePhoto({
         className={`flex items-center justify-center bg-gradient-to-br ${gradientFor(seed)} ${rounded} ${className}`}
         aria-label={name}
       >
-        <span className="text-4xl font-semibold text-white/90 drop-shadow-sm">{initial}</span>
+        <span className="font-serif text-4xl font-semibold text-maroon/55">{initial}</span>
       </div>
     );
   }

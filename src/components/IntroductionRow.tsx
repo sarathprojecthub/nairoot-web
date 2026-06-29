@@ -23,7 +23,6 @@ export function IntroductionRow({ item, side }: { item: IntroItem; side: 'receiv
     setError(null);
     try {
       await acceptIntroduction(intro.id);
-      // success → the realtime listener flips this row to 'accepted'
     } catch {
       setError('Could not accept. Please try again.');
       setBusy(null);
@@ -36,7 +35,6 @@ export function IntroductionRow({ item, side }: { item: IntroItem; side: 'receiv
     setError(null);
     try {
       await declineIntroduction(intro.id);
-      // success → the listener removes this row from the pending list
     } catch {
       setError('Could not decline. Please try again.');
       setBusy(null);
@@ -44,48 +42,51 @@ export function IntroductionRow({ item, side }: { item: IntroItem; side: 'receiv
   }
 
   return (
-    <li className="flex flex-col gap-2 rounded-xl border border-stone-200 bg-white p-4 sm:flex-row sm:items-center">
+    <li className="flex flex-col gap-3 rounded-2xl border border-line bg-cream p-4 shadow-soft transition hover:border-line-strong sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-center gap-4">
         {profile ? (
           <Link href={`/discover/${otherId}`} className="shrink-0">
-            <ProfilePhoto src={profile.photo} name={name} seed={otherId} rounded="rounded-xl" className="h-16 w-16" />
+            <ProfilePhoto src={profile.photo} name={name} seed={otherId} rounded="rounded-xl" className="h-16 w-16 border border-line" />
           </Link>
         ) : (
-          <ProfilePhoto src="" name={name} seed={otherId} rounded="rounded-xl" className="h-16 w-16 shrink-0" />
+          <ProfilePhoto src="" name={name} seed={otherId} rounded="rounded-xl" className="h-16 w-16 shrink-0 border border-line" />
         )}
         <div className="min-w-0">
-          <p className="truncate font-medium text-stone-900">
+          <p className="truncate font-serif text-base font-semibold text-charcoal">
             {name}
-            {profile?.age ? <span className="font-normal text-stone-500">, {profile.age}</span> : null}
+            {profile?.age ? <span className="font-sans text-sm font-normal text-muted">, {profile.age}</span> : null}
           </p>
-          <p className="truncate text-sm text-stone-500">{subtitle}</p>
+          <p className="truncate text-sm text-muted">{subtitle}</p>
         </div>
       </div>
 
       <div className="flex shrink-0 items-center gap-2 sm:justify-end">
         {intro.status === 'accepted' ? (
-          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700">
-            Matched ✓
-          </span>
+          <Link
+            href="/chats"
+            className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+          >
+            ✓ Matched · Message
+          </Link>
         ) : side === 'received' ? (
           <>
             <button
               onClick={onDecline}
               disabled={!!busy}
-              className="rounded-full border border-stone-300 px-4 py-1.5 text-sm font-medium text-stone-600 transition hover:bg-stone-50 disabled:opacity-50"
+              className="rounded-full border border-line-strong px-4 py-1.5 text-sm font-medium text-ink/70 transition hover:bg-ivory-deep disabled:opacity-50"
             >
               {busy === 'decline' ? '…' : 'Decline'}
             </button>
             <button
               onClick={onAccept}
               disabled={!!busy}
-              className="rounded-full bg-stone-900 px-5 py-1.5 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-50"
+              className="rounded-full bg-maroon px-5 py-1.5 text-sm font-semibold text-cream shadow-soft transition hover:bg-maroon-deep disabled:opacity-50"
             >
               {busy === 'accept' ? 'Accepting…' : 'Accept'}
             </button>
           </>
         ) : (
-          <span className="rounded-full bg-stone-100 px-4 py-1.5 text-sm text-stone-500">Awaiting response</span>
+          <span className="rounded-full border border-line bg-ivory-deep px-4 py-1.5 text-sm text-muted">Awaiting response</span>
         )}
       </div>
 

@@ -32,7 +32,7 @@ function Cell({ span, children }: { span?: boolean; children: React.ReactNode })
 function Group({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
     <section className="mb-8">
-      {title && <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-stone-400">{title}</h3>}
+      {title && <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">{title}</h3>}
       {children}
     </section>
   );
@@ -88,7 +88,7 @@ function DobField({ data, update }: StepProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day, month, year]);
 
-  const box = 'rounded-lg border border-stone-200 bg-white px-3 py-3 text-center text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20';
+  const box = 'rounded-lg border border-line-strong bg-cream px-3 py-3 text-center text-sm text-ink outline-none focus:border-gold focus:ring-2 focus:ring-gold/20';
   return (
     <div>
       <FieldLabel required>Date of birth</FieldLabel>
@@ -101,7 +101,7 @@ function DobField({ data, update }: StepProps) {
         <span className="text-stone-300">/</span>
         <input value={year} inputMode="numeric" placeholder="YYYY" maxLength={4} aria-label="Year"
           onChange={(e) => setYear(e.target.value.replace(/\D/g, '').slice(0, 4))} className={`w-20 ${box}`} />
-        {age !== null && <span className="ml-1 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">{age} yrs</span>}
+        {age !== null && <span className="ml-1 rounded-full bg-gold/10 px-3 py-1 text-xs font-semibold text-maroon">{age} yrs</span>}
       </div>
       {error && <FieldError>{error}</FieldError>}
     </div>
@@ -134,9 +134,9 @@ export function AboutYouStep({ data, update }: StepProps) {
       </Group>
 
       <Group title="Background">
-        <div className="mb-4 flex gap-6 rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm">
-          <span><span className="text-stone-400">Religion</span> <span className="font-medium text-stone-800">Hindu</span></span>
-          <span><span className="text-stone-400">Caste</span> <span className="font-medium text-stone-800">Nair</span></span>
+        <div className="mb-4 flex gap-6 rounded-xl border border-line bg-cream px-4 py-3 text-sm">
+          <span><span className="text-muted">Religion</span> <span className="font-medium text-charcoal">Hindu</span></span>
+          <span><span className="text-muted">Caste</span> <span className="font-medium text-charcoal">Nair</span></span>
         </div>
         <Grid>
           <Cell span>
@@ -235,7 +235,7 @@ export function FamilyStoryStep({ data, update }: StepProps) {
               <div className="mb-2 flex flex-wrap gap-2">
                 {FAMILY_DESC_STARTERS.map((sx) => (
                   <button key={sx.label} type="button" onClick={() => update({ familyDescription: sx.text })}
-                    className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs text-stone-500 transition hover:border-stone-300">
+                    className="rounded-full border border-line bg-cream px-3 py-1 text-xs text-muted transition hover:border-gold/50">
                     {sx.label}
                   </button>
                 ))}
@@ -243,7 +243,7 @@ export function FamilyStoryStep({ data, update }: StepProps) {
             )}
             <TextArea value={data.familyDescription} onChange={(v) => update({ familyDescription: v })} maxLength={MAX_FAMILY_DESC} rows={3}
               placeholder="e.g. Close-knit family from Thrissur. Father is a retired civil servant…" />
-            {famPrompt && <p className="mt-1 text-xs italic text-amber-600">{famPrompt}</p>}
+            {famPrompt && <p className="mt-1 text-xs italic text-gold">{famPrompt}</p>}
           </Cell>
           <Cell>
             <FieldLabel optional>Father&apos;s occupation</FieldLabel>
@@ -266,12 +266,12 @@ export function FamilyStoryStep({ data, update }: StepProps) {
 
       <Group title="Your story">
         <FieldLabel required>About you</FieldLabel>
-        <p className="mb-2 text-xs italic text-stone-400">What matters to you? What does a good life feel like to you?</p>
+        <p className="mb-2 text-xs italic text-muted">What matters to you? What does a good life feel like to you?</p>
         {data.bio.length === 0 && (
           <div className="mb-2 flex flex-wrap gap-2">
             {BIO_STARTERS.map((sx) => (
               <button key={sx.label} type="button" onClick={() => update({ bio: sx.text })}
-                className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs text-stone-500 transition hover:border-stone-300">
+                className="rounded-full border border-line bg-cream px-3 py-1 text-xs text-muted transition hover:border-gold/50">
                 {sx.label}
               </button>
             ))}
@@ -279,13 +279,13 @@ export function FamilyStoryStep({ data, update }: StepProps) {
         )}
         <TextArea value={data.bio} onChange={(v) => update({ bio: v })} maxLength={BIO_MAX_CHARS} rows={5}
           placeholder="Write a few lines about who you are, your values, and what you are looking for…" />
-        {!bioReady && data.bio.length > 0 && <p className="mt-1 text-xs text-stone-400">A little more — at least {BIO_MIN_CHARS} characters.</p>}
-        {bioReady && bioNudge && <p className="mt-1 text-xs italic text-amber-600">{bioNudge}</p>}
+        {!bioReady && data.bio.length > 0 && <p className="mt-1 text-xs text-muted">A little more — at least {BIO_MIN_CHARS} characters.</p>}
+        {bioReady && bioNudge && <p className="mt-1 text-xs italic text-gold">{bioNudge}</p>}
 
         <div className="mt-5">
           {!data.promptQuestion && !showPrompt && (
             <button type="button" onClick={() => setShowPrompt(true)}
-              className="w-full rounded-lg border border-stone-200 bg-white py-2.5 text-sm font-medium text-amber-700 transition hover:border-stone-300">
+              className="w-full rounded-lg border border-line bg-cream py-2.5 text-sm font-medium text-maroon transition hover:border-gold/50">
               + Add a personal note (optional)
             </button>
           )}
@@ -295,7 +295,7 @@ export function FamilyStoryStep({ data, update }: StepProps) {
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {PROMPT_QUESTIONS.map((q) => (
                   <button key={q} type="button" onClick={() => update({ promptQuestion: q, promptAnswer: '' })}
-                    className="rounded-lg border border-amber-200 bg-amber-50/50 px-3.5 py-2.5 text-left text-sm italic text-stone-600 transition hover:bg-amber-50">
+                    className="rounded-lg border border-gold/30 bg-gold/[0.07] px-3.5 py-2.5 text-left text-sm italic text-ink/80 transition hover:bg-gold/10">
                     &ldquo;{q}&rdquo;
                   </button>
                 ))}
@@ -305,8 +305,8 @@ export function FamilyStoryStep({ data, update }: StepProps) {
           {data.promptQuestion && (
             <div>
               <div className="mb-2 flex items-start justify-between gap-2">
-                <span className="text-sm font-medium italic text-amber-700">&ldquo;{data.promptQuestion}&rdquo;</span>
-                <button type="button" onClick={() => update({ promptQuestion: '', promptAnswer: '' })} className="shrink-0 text-xs text-stone-400 hover:text-stone-600">Remove</button>
+                <span className="text-sm font-medium italic text-maroon">&ldquo;{data.promptQuestion}&rdquo;</span>
+                <button type="button" onClick={() => update({ promptQuestion: '', promptAnswer: '' })} className="shrink-0 text-xs text-muted hover:text-ink/80">Remove</button>
               </div>
               <TextArea value={data.promptAnswer} onChange={(v) => update({ promptAnswer: v })} maxLength={PROMPT_MAX_CHARS} rows={2} placeholder="Write your answer…" />
             </div>
@@ -349,7 +349,7 @@ export function PhotosStep({ data, update, uid }: StepProps & { uid: string }) {
   return (
     <div>
       {!configured && (
-        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800">
+        <p className="mb-4 rounded-lg border border-gold/30 bg-gold/10 px-3.5 py-2.5 text-xs text-[#7a5a2a]">
           Photo upload is not configured. Set <code>NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME</code> and{' '}
           <code>NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET</code> in <code>.env.local</code>.
         </p>
@@ -362,11 +362,11 @@ export function PhotosStep({ data, update, uid }: StepProps & { uid: string }) {
               <input ref={(el) => { inputRefs.current[i] = el; }} type="file" accept="image/*" className="hidden"
                 onChange={(e) => { const file = e.target.files?.[0]; if (file) void pick(i, file); e.target.value = ''; }} />
               <button type="button" onClick={() => inputRefs.current[i]?.click()}
-                className={`relative flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-xl border transition ${i === 0 ? 'border-amber-300' : 'border-stone-200'} ${slot ? '' : 'bg-white hover:border-stone-300'}`}>
+                className={`relative flex aspect-[4/5] w-full items-center justify-center overflow-hidden rounded-xl border transition ${i === 0 ? 'border-gold' : 'border-line'} ${slot ? '' : 'bg-cream hover:border-gold/50'}`}>
                 {slot
                   // eslint-disable-next-line @next/next/no-img-element
                   ? <img src={slot.previewUrl} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" />
-                  : <span className="flex flex-col items-center gap-1 text-stone-400"><span className="text-2xl">＋</span><span className="text-[11px]">{i === 0 ? 'Primary' : 'Add'}</span></span>}
+                  : <span className="flex flex-col items-center gap-1 text-muted"><span className="text-2xl">＋</span><span className="text-[11px]">{i === 0 ? 'Primary' : 'Add'}</span></span>}
                 {slot?.status === 'uploading' && <span className="absolute inset-0 flex items-center justify-center bg-black/40"><span className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" /></span>}
                 {slot?.status === 'error' && <span className="absolute inset-0 flex items-center justify-center bg-red-600/70 text-xs font-medium text-white">Retry</span>}
               </button>
@@ -375,7 +375,7 @@ export function PhotosStep({ data, update, uid }: StepProps & { uid: string }) {
           );
         })}
       </div>
-      <p className="mt-4 text-xs text-stone-400">Natural light, face clearly visible. At least one photo to continue.</p>
+      <p className="mt-4 text-xs text-muted">Natural light, face clearly visible. At least one photo to continue.</p>
     </div>
   );
 }
@@ -393,8 +393,8 @@ export function ReviewStep({ data }: { data: OnboardingData }) {
 
   return (
     <div className="sm:grid sm:grid-cols-[minmax(0,18rem)_1fr] sm:gap-6">
-      <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
-        <div className="relative aspect-[4/5] w-full bg-stone-100">
+      <div className="overflow-hidden rounded-2xl border border-line bg-cream shadow-sm">
+        <div className="relative aspect-[4/5] w-full bg-ivory-deep">
           <ProfilePhoto src={data.photos[0] ?? ''} name={data.name} seed={data.name || 'me'} className="h-full w-full" />
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-4">
             <div className="font-serif text-xl font-semibold text-white">{data.name || 'Your Name'}</div>
@@ -409,18 +409,18 @@ export function ReviewStep({ data }: { data: OnboardingData }) {
           {genderLabel && <Badge>{genderLabel}</Badge>}
           {data.city && <Badge>{data.city}</Badge>}
         </div>
-        {data.bio && <div><SectionTitle>About</SectionTitle><p className="text-sm leading-relaxed text-stone-600">{data.bio}</p></div>}
-        <div><SectionTitle>Looking for</SectionTitle><p className="text-sm text-stone-600">{lookingFor}</p></div>
-        {quality && <p className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 text-sm italic text-stone-500">{quality}</p>}
-        <p className="text-xs leading-relaxed text-stone-400">Your profile is reviewed before introductions begin. Introductions are private, mutual, and considered carefully.</p>
+        {data.bio && <div><SectionTitle>About</SectionTitle><p className="text-sm leading-relaxed text-ink/80">{data.bio}</p></div>}
+        <div><SectionTitle>Looking for</SectionTitle><p className="text-sm text-ink/80">{lookingFor}</p></div>
+        {quality && <p className="rounded-lg border border-line bg-ivory-deep px-4 py-3 text-sm italic text-muted">{quality}</p>}
+        <p className="text-xs leading-relaxed text-muted">Your profile is reviewed before introductions begin. Introductions are private, mutual, and considered carefully.</p>
       </div>
     </div>
   );
 }
 
 function Badge({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs font-medium text-stone-600">{children}</span>;
+  return <span className="rounded-full border border-line bg-ivory-deep px-3 py-1 text-xs font-medium text-ink/80">{children}</span>;
 }
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-stone-400">{children}</div>;
+  return <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">{children}</div>;
 }

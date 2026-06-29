@@ -3,26 +3,30 @@
 import { useIntroductions } from '@/hooks/useIntroductions';
 import { IntroductionRow } from '@/components/IntroductionRow';
 import { PageSpinner } from '@/components/ui/Loading';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 
 function Section({
-  title,
-  empty,
-  children,
+  title, count, empty, children,
 }: {
   title: string;
+  count: number;
   empty: string;
   children: React.ReactNode;
 }) {
-  const hasItems = Array.isArray(children) ? children.length > 0 : Boolean(children);
   return (
     <section className="mb-10">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-stone-400">{title}</h2>
-      {hasItems ? (
+      <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+        {title}
+        {count > 0 && (
+          <span className="rounded-full bg-maroon/[0.07] px-2 py-0.5 text-[11px] font-semibold text-maroon">{count}</span>
+        )}
+      </h2>
+      {count > 0 ? (
         <ul className="space-y-3">{children}</ul>
       ) : (
-        <p className="rounded-xl border border-dashed border-stone-200 px-4 py-8 text-center text-sm text-stone-400">
+        <div className="rounded-2xl border border-dashed border-line-strong bg-cream/60 px-4 py-10 text-center text-sm text-muted">
           {empty}
-        </p>
+        </div>
       )}
     </section>
   );
@@ -31,32 +35,32 @@ function Section({
 export default function IntroductionsPage() {
   const { received, sent, loading } = useIntroductions();
 
-  if (loading) {
-    return (
-      <div className="max-w-3xl">
-        <h1 className="mb-1 text-2xl font-semibold tracking-tight text-stone-900">Introductions</h1>
-        <p className="mb-8 text-sm text-stone-500">Your active introductions, updated live.</p>
-        <PageSpinner />
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-3xl">
-      <h1 className="mb-1 text-2xl font-semibold tracking-tight text-stone-900">Introductions</h1>
-      <p className="mb-8 text-sm text-stone-500">Your active introductions, updated live.</p>
+    <div className="mx-auto max-w-3xl">
+      <SectionHeader
+        eyebrow="Private & mutual"
+        title="Introductions"
+        subtitle="Considered both ways — shared only when both say yes. Updated live."
+        className="mb-8"
+      />
 
-      <Section title="Received" empty="No introductions received yet.">
-        {received.map((item) => (
-          <IntroductionRow key={item.intro.id} item={item} side="received" />
-        ))}
-      </Section>
+      {loading ? (
+        <PageSpinner />
+      ) : (
+        <>
+          <Section title="Received" count={received.length} empty="No introductions received yet. They’ll appear here as members express interest.">
+            {received.map((item) => (
+              <IntroductionRow key={item.intro.id} item={item} side="received" />
+            ))}
+          </Section>
 
-      <Section title="Sent" empty="You haven’t sent any introductions yet.">
-        {sent.map((item) => (
-          <IntroductionRow key={item.intro.id} item={item} side="sent" />
-        ))}
-      </Section>
+          <Section title="Sent" count={sent.length} empty="You haven’t expressed interest yet. Browse Discover to begin.">
+            {sent.map((item) => (
+              <IntroductionRow key={item.intro.id} item={item} side="sent" />
+            ))}
+          </Section>
+        </>
+      )}
     </div>
   );
 }

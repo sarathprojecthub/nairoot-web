@@ -2,28 +2,22 @@
 
 import type { ReactNode } from 'react';
 
-// ─── Reusable, responsive form primitives for the onboarding wizard. ──────────
+// ─── Reusable, responsive, brand-styled form primitives. ──────────────────────
 
 export function FieldLabel({
-  children,
-  optional,
-  required,
-}: {
-  children: ReactNode;
-  optional?: boolean;
-  required?: boolean;
-}) {
+  children, optional, required,
+}: { children: ReactNode; optional?: boolean; required?: boolean }) {
   return (
-    <label className="mb-2 block text-sm font-medium text-stone-600">
+    <label className="mb-2 block text-sm font-medium text-ink/80">
       {children}
-      {required && <span className="text-amber-600"> *</span>}
-      {optional && <span className="font-normal text-stone-400"> (optional)</span>}
+      {required && <span className="text-gold"> *</span>}
+      {optional && <span className="font-normal text-muted"> (optional)</span>}
     </label>
   );
 }
 
 export function Hint({ children }: { children: ReactNode }) {
-  return <p className="mt-1.5 text-xs leading-relaxed text-stone-400">{children}</p>;
+  return <p className="mt-1.5 text-xs leading-relaxed text-muted">{children}</p>;
 }
 
 export function FieldError({ children }: { children: ReactNode }) {
@@ -36,14 +30,8 @@ export function Field({ children }: { children: ReactNode }) {
 
 // ── Single-select chip ────────────────────────────────────────────────────────
 export function Chip({
-  label,
-  selected,
-  onClick,
-}: {
-  label: string;
-  selected: boolean;
-  onClick: () => void;
-}) {
+  label, selected, onClick,
+}: { label: string; selected: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -51,8 +39,8 @@ export function Chip({
       aria-pressed={selected}
       className={`rounded-lg border px-3.5 py-2 text-sm font-medium transition ${
         selected
-          ? 'border-amber-500 bg-amber-500 text-white shadow-sm'
-          : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300'
+          ? 'border-maroon bg-maroon text-cream shadow-soft'
+          : 'border-line-strong bg-cream text-ink/80 hover:border-gold/50'
       }`}
     >
       {label}
@@ -61,15 +49,11 @@ export function Chip({
 }
 
 export function ChipGroup({
-  options,
-  value,
-  onChange,
-  toggleable,
+  options, value, onChange, toggleable,
 }: {
   options: readonly string[];
   value: string;
   onChange: (v: string) => void;
-  // when true, clicking the selected chip clears it (matches Android optional chips)
   toggleable?: boolean;
 }) {
   return (
@@ -87,14 +71,11 @@ export function ChipGroup({
 }
 
 // ── Text input ────────────────────────────────────────────────────────────────
+const FIELD_CLASS =
+  'w-full rounded-lg border border-line-strong bg-cream px-3.5 py-3 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-gold focus:ring-2 focus:ring-gold/20';
+
 export function TextField({
-  value,
-  onChange,
-  placeholder,
-  type = 'text',
-  inputMode,
-  maxLength,
-  autoFocus,
+  value, onChange, placeholder, type = 'text', inputMode, maxLength, autoFocus,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -113,17 +94,13 @@ export function TextField({
       autoFocus={autoFocus}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full rounded-lg border border-stone-200 bg-white px-3.5 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+      className={FIELD_CLASS}
     />
   );
 }
 
 export function TextArea({
-  value,
-  onChange,
-  placeholder,
-  maxLength,
-  rows = 5,
+  value, onChange, placeholder, maxLength, rows = 5,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -138,22 +115,16 @@ export function TextArea({
         rows={rows}
         onChange={(e) => onChange(e.target.value.slice(0, maxLength))}
         placeholder={placeholder}
-        className="w-full resize-none rounded-lg border border-stone-200 bg-white px-3.5 py-3 text-sm leading-relaxed text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+        className={`${FIELD_CLASS} resize-none leading-relaxed`}
       />
-      <div className="mt-1 text-right text-xs text-stone-400">
-        {maxLength - value.length} left
-      </div>
+      <div className="mt-1 text-right text-xs text-muted">{maxLength - value.length} left</div>
     </div>
   );
 }
 
-// ── Selectable card (label + sub) for grids / radio-style lists ───────────────
+// ── Selectable card (label + sub) ─────────────────────────────────────────────
 export function OptionCard({
-  label,
-  sub,
-  selected,
-  onClick,
-  className = '',
+  label, sub, selected, onClick, className = '',
 }: {
   label: string;
   sub?: string;
@@ -168,24 +139,19 @@ export function OptionCard({
       aria-pressed={selected}
       className={`rounded-xl border px-4 py-3 text-left transition ${
         selected
-          ? 'border-amber-500 bg-amber-50 ring-1 ring-amber-500'
-          : 'border-stone-200 bg-white hover:border-stone-300'
+          ? 'border-gold bg-gold/10 ring-1 ring-gold'
+          : 'border-line-strong bg-cream hover:border-gold/50'
       } ${className}`}
     >
-      <div className={`text-sm font-semibold ${selected ? 'text-amber-700' : 'text-stone-800'}`}>
-        {label}
-      </div>
-      {sub && <div className="mt-0.5 text-xs text-stone-500">{sub}</div>}
+      <div className={`text-sm font-semibold ${selected ? 'text-maroon' : 'text-charcoal'}`}>{label}</div>
+      {sub && <div className="mt-0.5 text-xs text-muted">{sub}</div>}
     </button>
   );
 }
 
-// ── Primary CTA button used in the shell footer ───────────────────────────────
+// ── Primary CTA button (shell footer + forms) ─────────────────────────────────
 export function PrimaryButton({
-  children,
-  onClick,
-  disabled,
-  loading,
+  children, onClick, disabled, loading,
 }: {
   children: ReactNode;
   onClick: () => void;
@@ -197,11 +163,9 @@ export function PrimaryButton({
       type="button"
       onClick={onClick}
       disabled={disabled || loading}
-      className="flex w-full items-center justify-center gap-2 rounded-full bg-stone-900 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+      className="flex w-full items-center justify-center gap-2 rounded-full bg-maroon px-6 py-3.5 text-sm font-semibold text-cream shadow-soft transition hover:bg-maroon-deep disabled:cursor-not-allowed disabled:bg-line-strong disabled:text-muted"
     >
-      {loading && (
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-      )}
+      {loading && <span className="h-4 w-4 animate-spin rounded-full border-2 border-cream/40 border-t-cream" />}
       {children}
     </button>
   );

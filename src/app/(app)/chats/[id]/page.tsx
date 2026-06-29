@@ -44,9 +44,7 @@ export default function ConversationPage() {
         if (active) setOther(p);
       }
     })();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [convId, uid]);
 
   // Auto-scroll to newest message.
@@ -72,36 +70,37 @@ export default function ConversationPage() {
   }
 
   const name = other?.name || 'A member';
+  const otherUid = conversation?.participants.find((p) => p !== uid) ?? convId ?? '';
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-8rem)] max-w-2xl flex-col">
+    <div className="mx-auto flex h-[calc(100vh-10rem)] max-w-2xl flex-col overflow-hidden rounded-2xl border border-line bg-cream shadow-card">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-stone-200 pb-3">
-        <Link href="/chats" className="text-stone-400 hover:text-stone-700">
-          ←
-        </Link>
-        <ProfilePhoto src={other?.photo ?? ''} name={name} seed={conversation?.participants.find((p) => p !== uid) ?? convId ?? ''} rounded="rounded-full" className="h-9 w-9" />
-        <p className="font-medium text-stone-900">{name}</p>
+      <div className="flex items-center gap-3 border-b border-line bg-ivory/70 px-4 py-3 backdrop-blur">
+        <Link href="/chats" className="text-muted transition hover:text-ink" aria-label="Back to chats">←</Link>
+        <ProfilePhoto src={other?.photo ?? ''} name={name} seed={otherUid} rounded="rounded-full" className="h-9 w-9 border border-line" />
+        <Link href={`/discover/${otherUid}`} className="font-serif text-base font-semibold text-charcoal hover:underline">{name}</Link>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 space-y-2 overflow-y-auto py-4">
+      <div className="flex-1 space-y-2.5 overflow-y-auto px-4 py-5">
         {loading ? (
           <PageSpinner />
         ) : messages.length === 0 ? (
-          <p className="text-center text-sm text-stone-400">No messages yet. Say hello.</p>
+          <p className="py-10 text-center text-sm text-muted">No messages yet. Say hello.</p>
         ) : (
           messages.map((m) => {
             const mine = m.senderId === uid;
             return (
               <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                 <div
-                  className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
-                    mine ? 'rounded-br-sm bg-stone-900 text-white' : 'rounded-bl-sm bg-stone-100 text-stone-800'
+                  className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm shadow-soft ${
+                    mine ? 'rounded-br-md bg-maroon text-cream' : 'rounded-bl-md border border-line bg-white text-ink'
                   }`}
                 >
-                  <p className="whitespace-pre-wrap break-words">{m.deleted ? <em className="opacity-60">Message removed</em> : m.text}</p>
-                  <p className={`mt-1 text-[10px] ${mine ? 'text-white/50' : 'text-stone-400'}`}>{timeShort(m.createdAt)}</p>
+                  <p className="whitespace-pre-wrap break-words leading-relaxed">
+                    {m.deleted ? <em className="opacity-60">Message removed</em> : m.text}
+                  </p>
+                  <p className={`mt-1 text-[10px] ${mine ? 'text-cream/55' : 'text-muted'}`}>{timeShort(m.createdAt)}</p>
                 </div>
               </div>
             );
@@ -111,23 +110,23 @@ export default function ConversationPage() {
       </div>
 
       {/* Composer */}
-      <form onSubmit={onSubmit} className="flex items-center gap-2 border-t border-stone-200 pt-3">
+      <form onSubmit={onSubmit} className="flex items-center gap-2 border-t border-line bg-ivory/70 px-3 py-3 backdrop-blur">
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Write a message…"
           maxLength={2000}
-          className="flex-1 rounded-full border border-stone-300 px-4 py-2.5 text-sm outline-none focus:border-stone-500"
+          className="flex-1 rounded-full border border-line-strong bg-cream px-4 py-2.5 text-sm text-ink outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20"
         />
         <button
           type="submit"
           disabled={sending || text.trim().length === 0}
-          className="rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:opacity-50"
+          className="rounded-full bg-maroon px-5 py-2.5 text-sm font-semibold text-cream transition hover:bg-maroon-deep disabled:opacity-50"
         >
           {sending ? '…' : 'Send'}
         </button>
       </form>
-      {error && <p className="pb-1 text-right text-xs text-red-600">{error}</p>}
+      {error && <p className="px-4 pb-2 text-right text-xs text-red-600">{error}</p>}
     </div>
   );
 }

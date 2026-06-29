@@ -97,7 +97,7 @@ export default function ProfileEditPage() {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
         <p className="text-stone-600">You don’t have a profile yet.</p>
-        <button onClick={() => router.replace('/onboarding')} className="mt-4 rounded-full bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white">
+        <button onClick={() => router.replace('/onboarding')} className="mt-4 rounded-full bg-maroon px-5 py-2.5 text-sm font-semibold text-cream">
           Complete onboarding
         </button>
       </div>
@@ -109,13 +109,13 @@ export default function ProfileEditPage() {
     <div className="mx-auto max-w-3xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="font-serif text-2xl font-semibold text-stone-900">Edit profile</h1>
-          <p className="text-sm text-stone-500">Changes appear in Discover for Android and Website users.</p>
+          <h1 className="font-serif text-2xl font-semibold text-charcoal">Edit profile</h1>
+          <p className="text-sm text-muted">Changes appear in Discover for Android and Website users.</p>
         </div>
         <button
           onClick={toggleVisibility}
           className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-            profile.isVisible ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-stone-200 text-stone-600 hover:bg-stone-300'
+            profile.isVisible ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-ivory-deep text-ink/70 hover:bg-line-strong'
           }`}
         >
           {profile.isVisible ? '● Visible' : '○ Hidden'}
@@ -129,7 +129,7 @@ export default function ProfileEditPage() {
           {profile.photos.map((url, i) => (
             <div key={i} className="relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt={`Photo ${i + 1}`} className={`aspect-[4/5] w-full rounded-xl object-cover ${i === 0 ? 'ring-2 ring-amber-300' : ''}`} />
+              <img src={url} alt={`Photo ${i + 1}`} className={`aspect-[4/5] w-full rounded-xl object-cover ${i === 0 ? 'ring-2 ring-gold' : ''}`} />
               <button onClick={() => removePhoto(i)} className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-xs text-white" aria-label="Remove photo">✕</button>
             </div>
           ))}
@@ -137,9 +137,9 @@ export default function ProfileEditPage() {
             <button
               onClick={() => fileRef.current?.click()}
               disabled={!isCloudinaryConfigured() || uploadingSlot !== null}
-              className="flex aspect-[4/5] items-center justify-center rounded-xl border border-dashed border-stone-300 text-stone-400 hover:border-stone-400 disabled:opacity-40"
+              className="flex aspect-[4/5] items-center justify-center rounded-xl border border-dashed border-line-strong text-muted hover:border-gold/50 disabled:opacity-40"
             >
-              {uploadingSlot !== null ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-stone-300 border-t-stone-600" /> : '＋'}
+              {uploadingSlot !== null ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-line-strong border-t-maroon" /> : '＋'}
             </button>
           )}
         </div>
@@ -200,7 +200,7 @@ export default function ProfileEditPage() {
         </div>
       </div>
 
-      <div className="sticky bottom-0 mt-8 flex items-center gap-3 border-t border-stone-200 bg-stone-50/95 py-4 backdrop-blur">
+      <div className="sticky bottom-0 mt-8 flex items-center gap-3 border-t border-line bg-ivory/90 py-4 backdrop-blur">
         <div className="w-40"><PrimaryButton onClick={save} loading={saving}>Save changes</PrimaryButton></div>
         {flash && <span className="text-sm text-emerald-600">{flash}</span>}
       </div>
