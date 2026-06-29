@@ -6,6 +6,13 @@
 
 _Last updated: end of "Android Stability & SDK Completion" milestone._
 
+> ⚠️ **Current beta truth (2026-06 cleanup).** Login is **Firebase Email + Password** on **both**
+> web and Android — **phone/OTP is future roadmap, not current beta.** **Premium** is **coming
+> soon (waitlist); no payments are wired** — every member keeps full access free during beta.
+> **Notifications** are **in-app realtime only** (pending-introduction badge, Discover banner,
+> Introductions + Chats badges) — **no push/FCM.** Some sections below predate this and still
+> describe the earlier phone-auth / paid-premium plan; treat this note as authoritative.
+
 ---
 
 ## 1. Architecture overview
