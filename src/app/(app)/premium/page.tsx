@@ -1,6 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/components/AuthProvider';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -23,8 +26,54 @@ function Ornament() {
   );
 }
 
+type Status = 'checking' | 'idle' | 'joining' | 'joined';
+
 export default function PremiumPage() {
-  const [joined, setJoined] = useState(false);
+  const { user } = useAuth();
+  const [status, setStatus] = useState<Status>('checking');
+  const [error, setError] = useState<string | null>(null);
+
+  // On load, check whether the current user is already on the waitlist.
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    setStatus('checking');
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'premiumWaitlist', user.uid));
+        if (active) setStatus(snap.exists() ? 'joined' : 'idle');
+      } catch {
+        // Can't read yet (e.g. rules not deployed) — allow an attempt.
+        if (active) setStatus('idle');
+      }
+    })();
+    return () => { active = false; };
+  }, [user]);
+
+  // Idempotent: doc id = uid + setDoc(merge) → re-clicking never duplicates.
+  async function join() {
+    if (!user || status === 'joining' || status === 'joined') return;
+    setStatus('joining');
+    setError(null);
+    try {
+      await setDoc(
+        doc(db, 'premiumWaitlist', user.uid),
+        {
+          userId: user.uid,
+          email: user.email ?? '',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          source: 'web_premium_page',
+          status: 'joined',
+        },
+        { merge: true },
+      );
+      setStatus('joined');
+    } catch {
+      setError('Could not join the waitlist just now. Please try again.');
+      setStatus('idle');
+    }
+  }
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -44,17 +93,24 @@ export default function PremiumPage() {
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              {joined ? (
+              {status === 'joined' ? (
                 <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-5 py-2.5 text-sm font-semibold text-emerald-700">
                   ✓ You&apos;re on the waitlist
                 </span>
               ) : (
-                <Button variant="gold" size="lg" onClick={() => setJoined(true)}>
-                  Join the waitlist
+                <Button
+                  variant="gold"
+                  size="lg"
+                  onClick={join}
+                  loading={status === 'joining'}
+                  disabled={status === 'joining' || status === 'checking'}
+                >
+                  {status === 'joining' ? 'Joining…' : 'Join the waitlist'}
                 </Button>
               )}
               <span className="text-xs text-muted">No payment · no card required</span>
             </div>
+            {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
           </div>
         </div>
       </Card>
