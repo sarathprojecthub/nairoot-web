@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,7 +26,9 @@ export default function LoginPage() {
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const passwordValid = password.length >= 6;
-  const canSubmit = emailValid && passwordValid && !busy;
+  // Confirm-password is required only in create-account mode.
+  const passwordsMatch = mode === 'signin' || confirm === password;
+  const canSubmit = emailValid && passwordValid && passwordsMatch && !busy;
 
   async function submit() {
     if (!canSubmit) return;
@@ -43,6 +46,7 @@ export default function LoginPage() {
 
   function switchMode(next: Mode) {
     setMode(next);
+    setConfirm('');
     setError(null);
   }
 
@@ -103,6 +107,25 @@ export default function LoginPage() {
           />
           {mode === 'signup' && password.length > 0 && !passwordValid && (
             <p className="mt-1.5 text-xs text-muted">Password must be at least 6 characters.</p>
+          )}
+
+          {mode === 'signup' && (
+            <>
+              <label htmlFor="login-confirm" className="mb-1.5 mt-4 block text-sm font-medium text-ink/80">Confirm password</label>
+              <input
+                id="login-confirm"
+                type="password"
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && submit()}
+                placeholder="Re-enter your password"
+                className={inputClass}
+              />
+              {confirm.length > 0 && confirm !== password && (
+                <p className="mt-1.5 text-xs text-red-600">Passwords do not match.</p>
+              )}
+            </>
           )}
 
           <button

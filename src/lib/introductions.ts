@@ -9,8 +9,10 @@ import {
   where,
   orderBy,
   limit,
+  getDoc,
   getDocs,
   addDoc,
+  setDoc,
   updateDoc,
   doc,
   onSnapshot,
@@ -121,45 +123,98 @@ export function subscribeSent(uid: string, status: IntroStatus, cb: (intros: Int
 // Atomically: create conversation + match, mark introduction accepted.
 // Mirrors src/services/introductionService.ts acceptIntroduction byte-for-byte
 // in shape so the documents are identical to what the Android app produces.
+// The warm first message auto-sent by the accepter when an interest is accepted.
+export const ACCEPTANCE_MESSAGE =
+  'Thanks for reaching out — I liked your profile too. Happy to connect and get to know you better.';
+
 export async function acceptIntroduction(introId: string): Promise<string> {
-  return runTransaction(db, async (tx) => {
-    const introRef = doc(db, INTRODUCTIONS, introId);
-    const convRef = doc(collection(db, CONVERSATIONS));
-    const matchRef = doc(collection(db, MATCHES));
+  let result: { convId: string; senderId: string; recipientId: string };
 
-    const introSnap = await tx.get(introRef);
-    if (!introSnap.exists()) throw new Error('introduction_not_found');
-    const intro = introSnap.data() as DocumentData;
+  try {
+    result = await runTransaction(db, async (tx) => {
+      const introRef = doc(db, INTRODUCTIONS, introId);
+      const convRef = doc(collection(db, CONVERSATIONS));
+      const matchRef = doc(collection(db, MATCHES));
 
-    if (intro.status !== 'pending') throw new Error('introduction_not_pending');
-    if (intro.conversationId) throw new Error('conversation_already_exists');
+      const introSnap = await tx.get(introRef);
+      if (!introSnap.exists()) throw new Error('introduction_not_found');
+      const intro = introSnap.data() as DocumentData;
 
-    const now = Date.now();
+      if (intro.status !== 'pending') throw new Error('introduction_not_pending');
+      if (intro.conversationId) throw new Error('conversation_already_exists');
 
-    tx.set(convRef, {
-      id: convRef.id,
-      participants: [intro.senderId, intro.recipientId],
-      introductionId: introId,
-      status: 'active',
-      unreadCounts: { [intro.senderId]: 0, [intro.recipientId]: 0 },
-      createdAt: now,
-      updatedAt: now,
+      const now = Date.now();
+
+      tx.set(convRef, {
+        id: convRef.id,
+        participants: [intro.senderId, intro.recipientId],
+        introductionId: introId,
+        status: 'active',
+        unreadCounts: { [intro.senderId]: 0, [intro.recipientId]: 0 },
+        createdAt: now,
+        updatedAt: now,
+      });
+      tx.set(matchRef, {
+        id: matchRef.id,
+        userA: intro.senderId,
+        userB: intro.recipientId,
+        introductionId: introId,
+        conversationId: convRef.id,
+        createdAt: now,
+      });
+      tx.update(introRef, {
+        status: 'accepted',
+        conversationId: convRef.id,
+        respondedAt: now,
+      });
+
+      return { convId: convRef.id, senderId: intro.senderId as string, recipientId: intro.recipientId as string };
     });
-    tx.set(matchRef, {
-      id: matchRef.id,
-      userA: intro.senderId,
-      userB: intro.recipientId,
-      introductionId: introId,
-      conversationId: convRef.id,
-      createdAt: now,
-    });
-    tx.update(introRef, {
-      status: 'accepted',
-      conversationId: convRef.id,
-      respondedAt: now,
-    });
+  } catch (e) {
+    // Already accepted (race / retry) — reuse the existing conversation so the
+    // caller still gets a convId and the auto-message is ensured (idempotently).
+    const snap = await getDoc(doc(db, INTRODUCTIONS, introId));
+    const intro = snap.data() as DocumentData | undefined;
+    if (intro?.status === 'accepted' && typeof intro.conversationId === 'string') {
+      result = { convId: intro.conversationId, senderId: intro.senderId, recipientId: intro.recipientId };
+    } else {
+      throw e;
+    }
+  }
 
-    return convRef.id;
+  // Write the warm first message AFTER the transaction commits (the message-create
+  // rule does get(conversation).status — which must see the committed conversation).
+  // Best-effort: a failure here never blocks the accept.
+  await ensureAcceptanceMessage(result.convId, introId, result.recipientId, result.senderId).catch(() => {});
+  return result.convId;
+}
+
+// Idempotent: deterministic message id acceptance_{introId} → re-accept/retry
+// never creates a duplicate. accepterUid = the recipient who accepted; senderUid =
+// the original requester (who gets the unread).
+async function ensureAcceptanceMessage(
+  convId: string,
+  introId: string,
+  accepterUid: string,
+  senderUid: string,
+): Promise<void> {
+  const msgId = `acceptance_${introId}`;
+  const msgRef = doc(db, CONVERSATIONS, convId, 'messages', msgId);
+  if ((await getDoc(msgRef)).exists()) return; // already sent
+
+  const now = Date.now();
+  await setDoc(msgRef, {
+    id: msgId,
+    senderId: accepterUid,
+    text: ACCEPTANCE_MESSAGE,
+    createdAt: now,
+    readBy: [accepterUid],
+    deleted: false,
+  });
+  await updateDoc(doc(db, CONVERSATIONS, convId), {
+    lastMessage: { text: ACCEPTANCE_MESSAGE, senderId: accepterUid, sentAt: now },
+    updatedAt: now,
+    unreadCounts: { [senderUid]: 1, [accepterUid]: 0 },
   });
 }
 

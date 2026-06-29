@@ -63,10 +63,10 @@ export function IntroductionRow({ item, side }: { item: IntroItem; side: 'receiv
       <div className="flex shrink-0 items-center gap-2 sm:justify-end">
         {intro.status === 'accepted' ? (
           <Link
-            href="/chats"
-            className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+            href={intro.conversationId ? `/chats/${intro.conversationId}` : '/chats'}
+            className="inline-flex items-center gap-1.5 rounded-full bg-maroon px-5 py-1.5 text-sm font-semibold text-cream shadow-soft transition hover:bg-maroon-deep"
           >
-            ✓ Matched · Message
+            Message
           </Link>
         ) : side === 'received' ? (
           <>

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { fetchProfile } from '@/lib/profiles';
 import type { Profile } from '@/lib/types';
 import { ProfilePhoto } from '@/components/ProfilePhoto';
-import { SendInterestButton } from '@/components/SendInterestButton';
+import { ProfileRelationshipCTA } from '@/components/ProfileRelationshipCTA';
 import { PageSpinner } from '@/components/ui/Loading';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -145,7 +145,7 @@ export default function ProfileDetailPage() {
             </div>
 
             <div className="mt-8 border-t border-line pt-6">
-              <SendInterestButton profileId={profile.id} />
+              <ProfileRelationshipCTA profileId={profile.id} />
               <p className="mt-2.5 text-xs text-muted">Introductions are private and mutual — only shared if they accept.</p>
             </div>
           </div>

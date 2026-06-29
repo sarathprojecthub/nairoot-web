@@ -7,6 +7,11 @@
 
 The **product is functionally complete and regression-verified** (RC1 30/30 cross-platform QA, plus M5 onboarding/edit and M6 production auth, all passing). The gap to Beta is **configuration & deployment hygiene**, not product bugs — a short, well-defined punch list (mostly Firebase Console + one rule deletion + a release build). No new features are required.
 
+> ⚠️ **Auth correction (2026-06).** Beta login is now **Firebase Email + Password on both web and
+> Android** — phone/OTP is future roadmap only. **Any "enable Phone provider / add test phone
+> numbers / confirm SMS billing" steps below are obsolete** and should be skipped. Premium remains
+> **coming soon (waitlist), no payments wired**; notifications are **in-app realtime only (no push)**.
+
 ---
 
 ## 1. Product audit — per-area status

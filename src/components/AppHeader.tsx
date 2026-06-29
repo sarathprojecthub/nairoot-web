@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { logout } from '@/lib/auth';
+import { usePendingIntroductions } from '@/components/PendingIntroductionsProvider';
 
 const NAV = [
   { href: '/discover', label: 'Discover' },
@@ -18,6 +19,7 @@ export function AppHeader() {
   const pathname = usePathname() ?? '';
   const router = useRouter();
   const [out, setOut] = useState(false);
+  const { count: pendingCount } = usePendingIntroductions();
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
@@ -57,6 +59,11 @@ export function AppHeader() {
               }`}
             >
               {item.label}
+              {item.href === '/introductions' && pendingCount > 0 && (
+                <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-maroon px-1 text-[10px] font-semibold text-cream align-middle">
+                  {pendingCount}
+                </span>
+              )}
               {item.accent && !isActive(item.href) && (
                 <span className="absolute right-1.5 top-1.5 h-1 w-1 rounded-full bg-gold" />
               )}
@@ -85,6 +92,11 @@ export function AppHeader() {
             }`}
           >
             {item.label}
+            {item.href === '/introductions' && pendingCount > 0 && (
+              <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] font-semibold text-cream">
+                {pendingCount}
+              </span>
+            )}
           </Link>
         ))}
         <button

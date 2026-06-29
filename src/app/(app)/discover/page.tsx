@@ -3,6 +3,7 @@
 import { useDiscover } from '@/hooks/useDiscover';
 import { ProfileCard } from '@/components/ProfileCard';
 import { SectionHeader } from '@/components/ui/SectionHeader';
+import { PendingInterestBanner } from '@/components/PendingInterestBanner';
 
 function CardSkeleton() {
   return (
@@ -27,6 +28,8 @@ export default function DiscoverPage() {
         subtitle="A small, curated set of members — each one considered, not collected."
         className="mb-8"
       />
+
+      <PendingInterestBanner />
 
       {error && (
         <div className="mb-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">

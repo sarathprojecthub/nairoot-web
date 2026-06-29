@@ -8,6 +8,11 @@ Two repos, one Firebase backend (`nairoot-app`):
 
 Legend: ⬜ to do · ✅ done · 🔴 blocker.
 
+> ⚠️ **Auth correction (2026-06).** Beta login is now **Firebase Email + Password on both web and
+> Android** — phone/OTP is future roadmap only. **Skip every "enable Phone provider / Anonymous
+> provider / test phone numbers / SMS billing" item below** — they no longer apply. Premium is
+> **coming soon (waitlist), no payments wired**; notifications are **in-app realtime only (no push)**.
+
 ---
 
 ## 1. Firebase Console configuration
