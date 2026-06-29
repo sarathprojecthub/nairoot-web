@@ -37,8 +37,8 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-ivory/85 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        {/* Brand → Discover */}
-        <Link href="/discover" className="flex items-center gap-2.5">
+        {/* Brand → Discover (hidden on lg+, where the shared sidebar owns the brand) */}
+        <Link href="/discover" className="flex items-center gap-2.5 lg:hidden">
           <BrandLogo className="h-9 w-9 shrink-0" />
           <span className="flex flex-col leading-tight">
             <span className="font-serif text-lg font-semibold tracking-tight text-charcoal">The Nair Root</span>
@@ -46,8 +46,8 @@ export function AppHeader() {
           </span>
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden items-center gap-1 md:flex">
+        {/* Desktop nav — only on md; on lg+ the shared sidebar owns primary nav */}
+        <nav className="hidden items-center gap-1 md:flex lg:hidden">
           {NAV.map((item) => (
             <Link
               key={item.href}
@@ -71,14 +71,22 @@ export function AppHeader() {
           ))}
         </nav>
 
-        {/* Log out */}
-        <button
-          onClick={signOut}
-          disabled={out}
-          className="hidden rounded-full border border-line-strong px-3.5 py-1.5 text-xs font-semibold text-ink/70 transition hover:bg-cream hover:text-ink disabled:opacity-50 md:inline-flex"
-        >
-          {out ? '…' : 'Log out'}
-        </button>
+        {/* Right utility group — on lg+ this is the entire (minimal) header */}
+        <div className="ml-auto hidden items-center gap-2 md:flex">
+          <Link
+            href="/premium"
+            className="hidden rounded-full border border-gold/40 bg-gold/[0.08] px-3.5 py-1.5 text-xs font-semibold text-[#8a6a37] transition hover:bg-gold/15 lg:inline-flex"
+          >
+            Premium Waitlist
+          </Link>
+          <button
+            onClick={signOut}
+            disabled={out}
+            className="rounded-full border border-line-strong px-3.5 py-1.5 text-xs font-semibold text-ink/70 transition hover:bg-cream hover:text-ink disabled:opacity-50"
+          >
+            {out ? '…' : 'Log out'}
+          </button>
+        </div>
       </div>
 
       {/* Mobile nav — scrollable pill row */}

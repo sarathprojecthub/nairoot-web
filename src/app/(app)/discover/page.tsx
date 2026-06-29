@@ -5,11 +5,9 @@ import Link from 'next/link';
 import { useDiscover } from '@/hooks/useDiscover';
 import { useSentInterests } from '@/hooks/useSentInterests';
 import { useUid } from '@/hooks/useUid';
-import { usePendingIntroductions } from '@/components/PendingIntroductionsProvider';
 import { PendingInterestBanner } from '@/components/PendingInterestBanner';
 import { ProfilePhoto } from '@/components/ProfilePhoto';
-import { BrandLogo } from '@/components/ui/BrandLogo';
-import { sendInterest, subscribeSent, subscribeReceived } from '@/lib/introductions';
+import { sendInterest } from '@/lib/introductions';
 import type { Profile } from '@/lib/types';
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
@@ -58,7 +56,6 @@ export default function DiscoverPage() {
   const { profiles, loading, loadingMore, error, hasMore, loadMore } = useDiscover();
   const uid = useUid();
   const { sentTo, ready } = useSentInterests();
-  const { count: pendingCount } = usePendingIntroductions();
 
   // Optimistic interest state (mirrors SendInterestButton); the subscription confirms.
   const [optimisticSent, setOptimisticSent] = useState<Set<string>>(new Set());
@@ -108,17 +105,6 @@ export default function DiscoverPage() {
   // Dismiss — session-only (React state, not persisted).
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const dismiss = (id: string) => setDismissed((prev) => new Set(prev).add(id));
-
-  // Matches metric — cheap, reuses existing indexed accepted-introduction queries.
-  const [matchesCount, setMatchesCount] = useState(0);
-  useEffect(() => {
-    if (!uid) { setMatchesCount(0); return; }
-    let s = 0;
-    let r = 0;
-    const unsubS = subscribeSent(uid, 'accepted', (x) => { s = x.length; setMatchesCount(s + r); });
-    const unsubR = subscribeReceived(uid, 'accepted', (x) => { r = x.length; setMatchesCount(s + r); });
-    return () => { unsubS(); unsubR(); };
-  }, [uid]);
 
   // Tabs / sort / filters
   const [tab, setTab] = useState<TabId>('all');
@@ -222,20 +208,9 @@ export default function DiscoverPage() {
   );
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[16rem_minmax(0,1fr)_18rem]">
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_18rem]">
 
-      {/* ── Left sidebar ─────────────────────────────────────────────────── */}
-      <aside className="hidden lg:block">
-        <div className="sticky top-24 max-h-[calc(100vh-7rem)] space-y-4 overflow-y-auto overscroll-contain pr-1">
-          <DiscoverSidebar
-            pendingCount={pendingCount}
-            likesSent={sentTo.size}
-            matches={matchesCount}
-          />
-        </div>
-      </aside>
-
-      {/* ── Main column ──────────────────────────────────────────────────── */}
+      {/* ── Main column (the shared shell provides the left sidebar) ──────── */}
       <main className="min-w-0">
         <PendingInterestBanner />
         <DiscoverHero onRefine={handleRefine} />
@@ -336,99 +311,6 @@ export default function DiscoverPage() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Left sidebar
-// ─────────────────────────────────────────────────────────────────────────────
-
-function DiscoverSidebar({ pendingCount, likesSent, matches }: { pendingCount: number; likesSent: number; matches: number }) {
-  return (
-    <>
-      {/* Brand + quick nav */}
-      <div className="overflow-hidden rounded-3xl bg-gradient-to-b from-[#3a0a18] to-[#250713] p-5 text-cream shadow-card">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-gold/40 bg-cream/95">
-            <BrandLogo className="h-9 w-9" />
-          </span>
-          <div className="leading-tight">
-            <p className="font-serif text-base font-semibold">The Nair Root</p>
-            <p className="text-[11px] text-cream/60">Rooted in tradition. United by values.</p>
-          </div>
-        </div>
-
-        <nav className="mt-5 space-y-1 text-sm">
-          <SideNav href="/discover" label="Discover" icon={<CompassIcon className="h-4 w-4" />} active />
-          <SideNav href="/introductions" label="Introductions" icon={<UsersIcon className="h-4 w-4" />} badge={pendingCount} />
-          <SideNav href="/chats" label="Chats" icon={<ChatIcon className="h-4 w-4" />} />
-          <SideNav href="/premium" label="Premium" icon={<SparkleIcon className="h-4 w-4" />} accent />
-          <SideNav href="/profile" label="Profile" icon={<UserIcon className="h-4 w-4" />} />
-        </nav>
-      </div>
-
-      {/* Activity card */}
-      <div className="rounded-3xl border border-line bg-cream p-5 shadow-soft">
-        <div className="flex items-baseline justify-between">
-          <p className="font-serif text-base font-semibold text-charcoal">Your activity</p>
-          <span className="text-[11px] text-muted">At a glance</span>
-        </div>
-        <dl className="mt-3 space-y-2.5">
-          <ActivityRow label="Likes sent" value={likesSent} />
-          <ActivityRow label="Interested in you" value={pendingCount} />
-          <ActivityRow label="Matches" value={matches} />
-        </dl>
-        <p className="mt-3 text-[11px] leading-relaxed text-muted">
-          Counts update live as members respond.
-        </p>
-      </div>
-
-      {/* Premium waitlist card */}
-      <div className="overflow-hidden rounded-3xl border border-gold/30 bg-gradient-to-br from-gold/[0.10] to-cream p-5 shadow-soft">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-gold/15 px-2.5 py-1 text-[11px] font-semibold text-[#8a6a37]">
-          <SparkleIcon className="h-3.5 w-3.5" /> Coming soon
-        </span>
-        <p className="mt-3 font-serif text-base font-semibold text-charcoal">Premium is coming soon</p>
-        <p className="mt-1 text-xs leading-relaxed text-muted">
-          Join the waitlist for advanced filters and private matching tools.
-        </p>
-        <Link
-          href="/premium"
-          className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-maroon px-4 py-2.5 text-sm font-semibold text-cream shadow-soft transition hover:bg-maroon-deep"
-        >
-          View Premium
-        </Link>
-      </div>
-    </>
-  );
-}
-
-function SideNav({ href, label, icon, active, accent, badge }: { href: string; label: string; icon: ReactNode; active?: boolean; accent?: boolean; badge?: number }) {
-  return (
-    <Link
-      href={href}
-      className={`flex items-center gap-3 rounded-xl px-3 py-2 transition ${
-        active ? 'bg-cream/15 text-cream' : 'text-cream/70 hover:bg-cream/10 hover:text-cream'
-      }`}
-    >
-      <span className={accent ? 'text-gold-soft' : ''}>{icon}</span>
-      <span className="flex-1 font-medium">{label}</span>
-      {typeof badge === 'number' && badge > 0 && (
-        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1.5 text-[10px] font-bold text-[#3a0a18]">
-          {badge}
-        </span>
-      )}
-      {accent && <span className="h-1.5 w-1.5 rounded-full bg-gold-soft" />}
-    </Link>
-  );
-}
-
-function ActivityRow({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <dt className="text-sm text-muted">{label}</dt>
-      <dd className="font-serif text-lg font-semibold text-maroon">{value}</dd>
     </div>
   );
 }
@@ -910,21 +792,6 @@ function ChevronIcon({ className }: IconProps) {
 }
 function ShieldIcon({ className }: IconProps) {
   return <svg viewBox="0 0 24 24" className={className} {...stroke}><path d="M12 3 5 6v5.5c0 4.3 3 7.5 7 9 4-1.5 7-4.7 7-9V6l-7-3Z" /><path d="m9.2 12 2 2 3.6-3.8" /></svg>;
-}
-function SparkleIcon({ className }: IconProps) {
-  return <svg viewBox="0 0 24 24" className={className} {...stroke}><path d="M12 3.5 13.6 9 19 10.6 13.6 12.2 12 17.6 10.4 12.2 5 10.6 10.4 9 12 3.5Z" /></svg>;
-}
-function CompassIcon({ className }: IconProps) {
-  return <svg viewBox="0 0 24 24" className={className} {...stroke}><circle cx="12" cy="12" r="8.5" /><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z" /></svg>;
-}
-function UsersIcon({ className }: IconProps) {
-  return <svg viewBox="0 0 24 24" className={className} {...stroke}><circle cx="9" cy="8" r="3.2" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0" /><path d="M16 5.2a3.2 3.2 0 0 1 0 6.1M17.5 19a5.5 5.5 0 0 0-3-4.9" /></svg>;
-}
-function ChatIcon({ className }: IconProps) {
-  return <svg viewBox="0 0 24 24" className={className} {...stroke}><path d="M5 5h14v10H9l-4 4V5Z" /></svg>;
-}
-function UserIcon({ className }: IconProps) {
-  return <svg viewBox="0 0 24 24" className={className} {...stroke}><circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /></svg>;
 }
 
 // Decorative heritage motifs (very low opacity)
