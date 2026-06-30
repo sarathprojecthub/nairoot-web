@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { signUpWithEmail, signInWithEmail } from '@/lib/auth';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -19,6 +19,9 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPw, setShowPw] = useState(false); // UI-only: toggles password visibility
+  const [showTimingHint, setShowTimingHint] = useState(false);
+  const [cardHighlighted, setCardHighlighted] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // Already signed in (or just signed in) → route by onboarding state.
   useEffect(() => {
@@ -57,6 +60,17 @@ export default function LoginPage() {
     setConfirm('');
     setPhone('');
     setError(null);
+    if (next === 'signin') setShowTimingHint(false);
+  }
+
+  function handleTimingCTA() {
+    switchMode('signup');
+    setShowTimingHint(true);
+    setTimeout(() => {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setCardHighlighted(true);
+      setTimeout(() => setCardHighlighted(false), 1600);
+    }, 60);
   }
 
   const fieldWrap =
@@ -127,11 +141,39 @@ export default function LoginPage() {
               The Nair Root is a private, members-only community for Nair families seeking
               genuine relationships built on trust, values, and compatibility.
             </p>
+
+            {/* ── Marriage-Timing Insight Teaser ─────────────────────────────── */}
+            <div className="mt-8 max-w-md">
+              <div className="rounded-2xl border border-gold/25 bg-cream/80 px-5 py-5 shadow-soft">
+                <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-gold">
+                  <MoonIcon className="h-3.5 w-3.5" />
+                  New · Private Insight
+                </p>
+                <h3 className="mt-2.5 font-serif text-[17px] font-semibold leading-snug text-charcoal">
+                  Curious about your marriage timing?
+                </h3>
+                <p className="mt-2 text-[13px] leading-relaxed text-ink/70">
+                  Create your profile and unlock a private marriage-timing insight based on
+                  your birth details and preferences.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleTimingCTA}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full bg-maroon px-5 py-2.5 text-sm font-semibold text-cream shadow-soft transition hover:bg-maroon-deep"
+                >
+                  Check my marriage timing
+                  <ChevronRightIcon className="h-3.5 w-3.5" />
+                </button>
+                <p className="mt-3 text-[11px] text-muted/70">
+                  Indicative guidance only. Your choices remain your own.
+                </p>
+              </div>
+            </div>
           </section>
 
           {/* Auth card — right column on desktop, spans both hero rows */}
           <section className="order-2 lg:col-span-5 lg:col-start-8 lg:row-span-2 lg:row-start-1 lg:self-center">
-            <div className="relative mx-auto w-full max-w-md">
+            <div ref={cardRef} className="relative mx-auto w-full max-w-md">
               {/* floating brand seal */}
               <div className="absolute -top-7 left-1/2 z-10 -translate-x-1/2">
                 <span className="flex h-14 w-14 items-center justify-center rounded-full border border-gold/40 bg-cream shadow-card">
@@ -139,7 +181,7 @@ export default function LoginPage() {
                 </span>
               </div>
 
-              <div className="rounded-3xl border border-line bg-cream/95 px-6 pb-7 pt-12 shadow-card backdrop-blur-sm sm:px-8">
+              <div className={`rounded-3xl border bg-cream/95 px-6 pb-7 pt-12 backdrop-blur-sm sm:px-8 transition-shadow duration-700 ${cardHighlighted ? 'border-gold/60 shadow-[0_0_0_3px_rgba(177,137,79,0.22),0_8px_24px_-12px_rgba(60,46,30,0.12)]' : 'border-line shadow-card'}`}>
                 <div className="text-center">
                   <h2 className="font-serif text-2xl font-semibold tracking-tight text-charcoal">
                     {mode === 'signin' ? 'Welcome back' : 'Create your account'}
@@ -168,6 +210,16 @@ export default function LoginPage() {
                     Create account
                   </button>
                 </div>
+
+                {/* Marriage-timing nudge — shown when user arrives via timing CTA */}
+                {showTimingHint && mode === 'signup' && (
+                  <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-gold/30 bg-ivory/80 px-3.5 py-3">
+                    <MoonIcon className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+                    <p className="text-xs leading-relaxed text-ink/75">
+                      Want your private marriage-timing insight? Create your account — we&apos;ll ask for birth details after you join.
+                    </p>
+                  </div>
+                )}
 
                 {/* Email */}
                 <div className="mt-5">
@@ -472,6 +524,22 @@ function BadgeCheckIcon({ className }: IconProps) {
     <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 2.5l2.2 1.6 2.7-.2 1 2.5 2.3 1.4-.6 2.6.6 2.6-2.3 1.4-1 2.5-2.7-.2L12 21.5l-2.2-1.6-2.7.2-1-2.5L3.8 16l.6-2.6L3.8 10.8l2.3-1.4 1-2.5 2.7.2L12 2.5Z" />
       <path d="m9.3 12 1.9 1.9 3.5-3.7" />
+    </svg>
+  );
+}
+
+function MoonIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m9 18 6-6-6-6" />
     </svg>
   );
 }
