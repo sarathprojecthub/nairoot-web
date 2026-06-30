@@ -91,12 +91,25 @@ export default function ProfileDetailPage() {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <h1 className="font-serif text-3xl font-semibold tracking-tight text-charcoal">{profile.name || 'Member'}</h1>
               {profile.age > 0 && <span className="text-xl text-muted">{profile.age}</span>}
-              {profile.isPremium && <Badge tone="gold">Premium</Badge>}
               {profile.verifiedFields.length > 0 && <Badge tone="verified">✓ {profile.verifiedFields.length} verified</Badge>}
             </div>
             <p className="mt-1.5 text-ink/75">
               {[profile.profession, [profile.city, profile.state].filter(Boolean).join(', ')].filter(Boolean).join('  ·  ')}
             </p>
+
+            {/* Quick facts — fast scan above the fold; only fields with data */}
+            {(() => {
+              const facts = [profile.education, profile.motherTongue, profile.height]
+                .map((v) => (v ?? '').trim())
+                .filter(Boolean);
+              return facts.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {facts.map((f) => (
+                    <span key={f} className="rounded-full border border-line bg-cream px-3 py-1 text-xs font-medium text-ink/75">{f}</span>
+                  ))}
+                </div>
+              ) : null;
+            })()}
 
             {profile.bio && (
               <div className="mt-7">

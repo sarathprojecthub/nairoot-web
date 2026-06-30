@@ -6,9 +6,12 @@ import { useDiscover } from '@/hooks/useDiscover';
 import { useSentInterests } from '@/hooks/useSentInterests';
 import { useUid } from '@/hooks/useUid';
 import { PendingInterestBanner } from '@/components/PendingInterestBanner';
+import { usePendingIntroductions } from '@/components/PendingIntroductionsProvider';
 import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { sendInterest } from '@/lib/introductions';
 import type { Profile } from '@/lib/types';
+
+type Relation = 'none' | 'sent' | 'respond';
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 
@@ -37,13 +40,6 @@ const DEFAULT_FILTERS: Filters = {
   withPhotoOnly: false,
 };
 
-const FIT_LABELS = ['Shared values', 'Good fit', 'Profile match'];
-function fitLabel(id: string): string {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return FIT_LABELS[h % FIT_LABELS.length];
-}
-
 const isNew = (p: Profile) => p.createdAt > 0 && Date.now() - p.createdAt < WEEK;
 const isActive = (p: Profile) => p.activityStatus !== 'paused';
 const placeOf = (p: Profile) => [p.city, p.state].filter(Boolean).join(', ');
@@ -56,6 +52,10 @@ export default function DiscoverPage() {
   const { profiles, loading, loadingMore, error, hasMore, loadMore } = useDiscover();
   const uid = useUid();
   const { sentTo, ready } = useSentInterests();
+  // Who has already expressed interest in me (pending received) — from the shared
+  // app-wide subscription, so cards can show "Interested in you" / "Respond".
+  const { intros: pendingReceived } = usePendingIntroductions();
+  const receivedFrom = useMemo(() => new Set(pendingReceived.map((i) => i.senderId)), [pendingReceived]);
 
   // Optimistic interest state (mirrors SendInterestButton); the subscription confirms.
   const [optimisticSent, setOptimisticSent] = useState<Set<string>>(new Set());
@@ -250,7 +250,7 @@ export default function DiscoverPage() {
                 <DiscoverCard
                   key={p.id}
                   profile={p}
-                  sent={isSent(p.id)}
+                  relation={receivedFrom.has(p.id) ? 'respond' : isSent(p.id) ? 'sent' : 'none'}
                   ready={ready}
                   shortlisted={shortlist.has(p.id)}
                   onInterest={() => handleInterest(p.id)}
@@ -436,7 +436,7 @@ function SortMenu({ sort, setSort }: { sort: SortId; setSort: (s: SortId) => voi
 
 function DiscoverCard({
   profile,
-  sent,
+  relation,
   ready,
   shortlisted,
   onInterest,
@@ -444,7 +444,7 @@ function DiscoverCard({
   onDismiss,
 }: {
   profile: Profile;
-  sent: boolean;
+  relation: Relation;
   ready: boolean;
   shortlisted: boolean;
   onInterest: () => void;
@@ -452,6 +452,14 @@ function DiscoverCard({
   onDismiss: () => void;
 }) {
   const place = placeOf(profile);
+  // Build a compact set of meta chips from fields that actually have data — no
+  // "not added" spam. Community = mother tongue (the only real community signal).
+  const chips = [profile.profession, profile.education, profile.motherTongue]
+    .map((v) => (v ?? '').trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  const sparse = chips.length === 0 && !place;
+
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-3xl border border-line bg-cream shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-card">
       {/* Bookmark — sibling of the link, not nested inside the <a> */}
@@ -475,34 +483,47 @@ function DiscoverCard({
             seed={profile.id}
             className="h-full w-full transition duration-500 group-hover:scale-[1.04]"
           />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/25 to-transparent" />
-          <div className="absolute left-3 top-3 flex gap-1.5">
-            {isNew(profile) && (
-              <span className="rounded-full bg-maroon/90 px-2 py-0.5 text-[10px] font-semibold text-cream shadow-soft backdrop-blur">New</span>
-            )}
-            {shortlisted && (
-              <span className="rounded-full border border-gold/50 bg-cream/90 px-2 py-0.5 text-[10px] font-semibold text-[#8a6a37] shadow-soft backdrop-blur">Shortlisted</span>
-            )}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/30 to-transparent" />
+          {/* One priority badge only — interest in you outranks "new". */}
+          <div className="absolute left-3 top-3">
+            {relation === 'respond' ? (
+              <span className="rounded-full border border-gold/50 bg-cream/90 px-2 py-0.5 text-[10px] font-semibold text-[#8a6a37] shadow-soft backdrop-blur">Interested in you</span>
+            ) : isNew(profile) ? (
+              <span className="rounded-full bg-maroon/90 px-2 py-0.5 text-[10px] font-semibold text-cream shadow-soft backdrop-blur">New this week</span>
+            ) : null}
+          </div>
+          {/* Name + age over the photo for a denser, premium dossier feel. */}
+          <div className="absolute inset-x-0 bottom-0 px-4 pb-3">
+            <h3 className="truncate font-serif text-lg font-semibold text-cream drop-shadow-sm">
+              {profile.name || 'Member'}{profile.age > 0 && <span className="font-sans text-sm font-normal text-cream/85">, {profile.age}</span>}
+            </h3>
+            {place && <p className="truncate text-xs text-cream/85 drop-shadow-sm">{place}</p>}
           </div>
         </div>
 
-        <div className="flex flex-col gap-0.5 px-4 pt-3.5">
-          <div className="flex items-baseline justify-between gap-2">
-            <h3 className="truncate font-serif text-[1.05rem] font-semibold text-charcoal">{profile.name || 'Member'}</h3>
-            {profile.age > 0 && <span className="shrink-0 text-sm text-muted">{profile.age}</span>}
-          </div>
-          <p className="truncate text-sm text-ink/75">{profile.profession || 'Profession not added'}</p>
-          <p className="truncate text-xs text-muted">{profile.education || 'Education not added'}</p>
-          <p className="truncate text-xs text-muted">{place || 'Location not added'}</p>
-          <span className="mt-2 inline-flex w-fit items-center gap-1.5 rounded-full bg-gold/10 px-2 py-0.5 text-[11px] font-medium text-[#8a6a37]">
-            <span className="h-1.5 w-1.5 rounded-full bg-gold" /> {fitLabel(profile.id)}
-          </span>
+        <div className="px-4 pt-3">
+          {sparse ? (
+            <p className="text-xs italic text-muted/80">Profile details being completed</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {chips.map((c) => (
+                <span key={c} className="max-w-full truncate rounded-full border border-line bg-ivory/60 px-2 py-0.5 text-[11px] font-medium text-ink/70">{c}</span>
+              ))}
+            </div>
+          )}
         </div>
       </Link>
 
       {/* Actions — separate from the link */}
       <div className="mt-3 flex items-center gap-2 px-4 pb-4">
-        {sent ? (
+        {relation === 'respond' ? (
+          <Link
+            href="/introductions"
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-maroon px-4 py-2.5 text-sm font-semibold text-cream shadow-soft transition hover:bg-maroon-deep"
+          >
+            Respond
+          </Link>
+        ) : relation === 'sent' ? (
           <span className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700">
             ✓ Interest sent
           </span>
@@ -517,7 +538,8 @@ function DiscoverCard({
         )}
         <button
           onClick={onDismiss}
-          aria-label="Dismiss for now"
+          aria-label="Hide for now"
+          title="Hide for now"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-line-strong bg-cream text-ink/50 transition hover:bg-ivory-deep hover:text-ink"
         >
           <XIcon className="h-4 w-4" />

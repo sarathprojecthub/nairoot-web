@@ -21,17 +21,30 @@ export default function ChatsPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <SectionHeader eyebrow="Your conversations" title="Chats" className="mb-8" />
+      <SectionHeader
+        eyebrow="Private &amp; mutual"
+        title="Chats"
+        subtitle="Conversations open once an introduction is mutual."
+        className="mb-8"
+      />
 
       {loading ? (
         <PageSpinner />
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-line-strong bg-cream/60 px-4 py-16 text-center">
+        <div className="rounded-3xl border border-dashed border-line-strong bg-cream/60 px-6 py-16 text-center">
           <p className="font-serif text-lg text-charcoal">No conversations yet</p>
-          <p className="mt-1.5 text-sm text-muted">Accept an introduction to begin a conversation.</p>
+          <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted">
+            When you accept an introduction, your private conversation opens here.
+          </p>
+          <Link
+            href="/introductions"
+            className="mt-5 inline-flex rounded-full bg-maroon px-6 py-2.5 text-sm font-semibold text-cream shadow-soft transition hover:bg-maroon-deep"
+          >
+            Go to Introductions
+          </Link>
         </div>
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-cream shadow-soft">
+        <ul className="divide-y divide-line overflow-hidden rounded-3xl border border-line bg-cream shadow-soft">
           {items.map(({ conversation, other, otherUid, unread }) => {
             const name = other?.name || 'A member';
             const last = conversation.lastMessage;

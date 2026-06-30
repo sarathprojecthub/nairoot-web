@@ -25,8 +25,8 @@ export const PAGE_SIZE = 24;
 export type Cursor = QueryDocumentSnapshot<DocumentData> | null;
 
 // Firestore Security Rules require an authenticated request. Production web auth
-// is Phone OTP (see lib/auth.ts) — there is NO anonymous fallback. App pages are
-// behind a login guard, so callers here always run with a signed-in user; this
+// is Firebase Email + Password (see lib/auth.ts) — there is NO anonymous fallback.
+// App pages are behind a login guard, so callers here always run signed-in; this
 // resolves the current user (waiting once for the initial auth state) or rejects
 // with 'not_authenticated' if somehow called while signed out.
 export function ensureAuth(): Promise<User> {
