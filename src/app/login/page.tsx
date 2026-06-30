@@ -13,6 +13,7 @@ export default function LoginPage() {
   const { uid, isOnboarded, loading } = useCurrentUser();
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
@@ -29,14 +30,20 @@ export default function LoginPage() {
   const passwordValid = password.length >= 6;
   // Confirm-password is required only in create-account mode.
   const passwordsMatch = mode === 'signin' || confirm === password;
-  const canSubmit = emailValid && passwordValid && passwordsMatch && !busy;
+  // Phone is required only on Create account.
+  const phoneValid = isValidIndianMobile(phone);
+  const phoneOk = mode === 'signin' || phoneValid;
+  const canSubmit = emailValid && passwordValid && passwordsMatch && phoneOk && !busy;
+  // Sign-in: someone typing a phone number into the email field — guide them,
+  // do NOT attempt a phone→email lookup (see note above messageFor).
+  const phoneInEmailField = mode === 'signin' && !emailValid && looksLikePhone(email);
 
   async function submit() {
     if (!canSubmit) return;
     setBusy(true);
     setError(null);
     try {
-      if (mode === 'signup') await signUpWithEmail(email.trim(), password);
+      if (mode === 'signup') await signUpWithEmail(email.trim(), password, normalizePhone(phone));
       else await signInWithEmail(email.trim(), password);
       // AuthProvider updates → the effect above redirects. Keep the spinner up.
     } catch (e) {
@@ -48,6 +55,7 @@ export default function LoginPage() {
   function switchMode(next: Mode) {
     setMode(next);
     setConfirm('');
+    setPhone('');
     setError(null);
   }
 
@@ -178,7 +186,38 @@ export default function LoginPage() {
                       className={fieldInput}
                     />
                   </div>
+                  {phoneInEmailField && (
+                    <p className="mt-1.5 text-xs text-maroon">
+                      Phone login is coming soon. Please sign in with your email for now.
+                    </p>
+                  )}
                 </div>
+
+                {/* Phone — create-account only (collected, stored privately) */}
+                {mode === 'signup' && (
+                  <div className="mt-4">
+                    <label htmlFor="login-phone" className={labelClass}>Phone number</label>
+                    <div className={fieldWrap}>
+                      <PhoneIcon className="h-4 w-4 shrink-0 text-muted" />
+                      <input
+                        id="login-phone"
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && submit()}
+                        placeholder="10-digit mobile number"
+                        className={fieldInput}
+                      />
+                    </div>
+                    {phone.length > 0 && !phoneValid ? (
+                      <p className="mt-1.5 text-xs text-red-600">Enter a valid Indian mobile number (10 digits, starting 6–9).</p>
+                    ) : (
+                      <p className="mt-1.5 text-xs text-muted">Used only for account safety and future verification. Never shown on your profile.</p>
+                    )}
+                  </div>
+                )}
 
                 {/* Password */}
                 <div className="mt-4">
@@ -352,6 +391,14 @@ function TrustStat({ icon, title, sub }: { icon: ReactNode; title: string; sub: 
 
 type IconProps = { className?: string };
 
+function PhoneIcon({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6.5 4h3l1.5 4-2 1.5a11 11 0 0 0 5 5l1.5-2 4 1.5v3a2 2 0 0 1-2.2 2A16 16 0 0 1 4.5 6.2 2 2 0 0 1 6.5 4Z" />
+    </svg>
+  );
+}
+
 function MailIcon({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -467,6 +514,33 @@ function LampMotif({ className }: IconProps) {
       <rect x="24" y="352" width="72" height="10" rx="3" />
     </svg>
   );
+}
+
+// ── Phone collection (signup only) ────────────────────────────────────────────
+// NOTE: Phone + password login requires a secure backend lookup or OTP; do NOT
+// add an unauthenticated phone→email lookup (it would leak account existence and
+// contact data). We only COLLECT the phone at signup and store it privately;
+// sign-in stays email-only.
+
+// Accept spaces / +91 / hyphens etc. Valid = Indian mobile: 10 digits starting
+// 6–9, optionally prefixed with 91 or +91.
+function isValidIndianMobile(raw: string): boolean {
+  const cleaned = raw.replace(/[\s\-().]/g, '');
+  return /^(\+?91)?[6-9]\d{9}$/.test(cleaned);
+}
+
+// Normalise to E.164 +91XXXXXXXXXX for storage. (Validation restricts to Indian
+// numbers, so the country code is always +91 for now.)
+function normalizePhone(raw: string): string {
+  const cleaned = raw.replace(/[\s\-().]/g, '');
+  if (/^[6-9]\d{9}$/.test(cleaned)) return `+91${cleaned}`;
+  if (/^91[6-9]\d{9}$/.test(cleaned)) return `+${cleaned}`;
+  return cleaned; // already +91… (validity checked separately)
+}
+
+// True when the value looks like a phone number rather than an email.
+function looksLikePhone(s: string): boolean {
+  return /^[+\d][\d\s\-()]*$/.test(s.trim()) && s.replace(/\D/g, '').length >= 6;
 }
 
 function messageFor(e: unknown, mode: Mode): string {

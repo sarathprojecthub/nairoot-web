@@ -18,12 +18,19 @@ import {
 import { auth } from './firebase';
 import { createUserDoc } from './user';
 
-/** Create a new account, then ensure the private users/{uid} doc exists. */
-export async function signUpWithEmail(email: string, password: string): Promise<string> {
+/**
+ * Create a new account, then ensure the private users/{uid} doc exists.
+ * `phone` (already normalised, e.g. +91XXXXXXXXXX) is stored on the PRIVATE
+ * users/{uid} doc only — never on the public profiles/{uid} doc — so it is not
+ * exposed on Discover/profile pages. Optional for backward compatibility.
+ */
+export async function signUpWithEmail(email: string, password: string, phone = ''): Promise<string> {
   const cred = await createUserWithEmailAndPassword(auth, email, password);
-  // Email accounts have no phone number; the `phone` field stays empty (schema
-  // unchanged). createUserDoc is idempotent.
-  await createUserDoc(cred.user.uid, '');
+  await createUserDoc(
+    cred.user.uid,
+    phone,
+    phone ? { phoneVerified: false, phoneCountryCode: '+91' } : undefined,
+  );
   return cred.user.uid;
 }
 

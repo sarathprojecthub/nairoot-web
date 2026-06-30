@@ -16,6 +16,8 @@ const USERS = 'users';
 export interface DbUserLite {
   uid: string;
   phone: string;
+  phoneVerified?: boolean;
+  phoneCountryCode?: string;
   isOnboarded: boolean;
   createdAt: number;
   lastActive: number;
@@ -28,18 +30,29 @@ export async function fetchUser(uid: string): Promise<DbUserLite | null> {
   return snap.data() as DbUserLite;
 }
 
-/** Create initial user doc after first auth. Idempotent — safe to call twice. */
-export async function createUserDoc(uid: string, phone: string): Promise<void> {
+/**
+ * Create initial user doc after first auth. Idempotent — safe to call twice.
+ * `extra` carries optional phone metadata collected at email+password signup.
+ * omitUndefined keeps the doc shape identical for the sign-in safety-net path
+ * (no extra), and never writes membership fields (Security Rule U1 forbids them).
+ */
+export async function createUserDoc(
+  uid: string,
+  phone: string,
+  extra?: { phoneVerified?: boolean; phoneCountryCode?: string },
+): Promise<void> {
   const ref = doc(db, USERS, uid);
   const snap = await getDoc(ref);
   if (snap.exists()) return;
-  await setDoc(ref, {
+  await setDoc(ref, omitUndefined({
     uid,
     phone,
+    phoneVerified: extra?.phoneVerified,
+    phoneCountryCode: extra?.phoneCountryCode,
     isOnboarded: false,
     createdAt: Date.now(),
     lastActive: Date.now(),
-  });
+  }));
 }
 
 // Subset of the private profile fields written during onboarding completion.
