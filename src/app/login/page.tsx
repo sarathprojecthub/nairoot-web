@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { signUpWithEmail, signInWithEmail } from '@/lib/auth';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -20,14 +20,20 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [showPw, setShowPw] = useState(false); // UI-only: toggles password visibility
   const [showTimingHint, setShowTimingHint] = useState(false);
-  const [cardHighlighted, setCardHighlighted] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
 
   // Already signed in (or just signed in) → route by onboarding state.
   useEffect(() => {
     if (loading || !uid) return;
     router.replace(isOnboarded ? '/discover' : '/onboarding');
   }, [loading, uid, isOnboarded, router]);
+
+  // Read query params: ?mode=signup&intent=marriage-insight (set by /marriage-insight CTA).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mode') === 'signup') setMode('signup');
+    if (params.get('intent') === 'marriage-insight') setShowTimingHint(true);
+  }, []);
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const passwordValid = password.length >= 6;
@@ -64,13 +70,7 @@ export default function LoginPage() {
   }
 
   function handleTimingCTA() {
-    switchMode('signup');
-    setShowTimingHint(true);
-    setTimeout(() => {
-      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setCardHighlighted(true);
-      setTimeout(() => setCardHighlighted(false), 1600);
-    }, 60);
+    router.push('/marriage-insight');
   }
 
   const fieldWrap =
@@ -153,8 +153,8 @@ export default function LoginPage() {
                   Curious about your marriage timing?
                 </h3>
                 <p className="mt-2 text-[13px] leading-relaxed text-ink/70">
-                  Create your profile and unlock a private marriage-timing insight based on
-                  your birth details and preferences.
+                  Answer a few private birth-detail questions and receive an indicative
+                  marriage-timing insight before creating your profile.
                 </p>
                 <button
                   type="button"
@@ -173,7 +173,7 @@ export default function LoginPage() {
 
           {/* Auth card — right column on desktop, spans both hero rows */}
           <section className="order-2 lg:col-span-5 lg:col-start-8 lg:row-span-2 lg:row-start-1 lg:self-center">
-            <div ref={cardRef} className="relative mx-auto w-full max-w-md">
+            <div className="relative mx-auto w-full max-w-md">
               {/* floating brand seal */}
               <div className="absolute -top-7 left-1/2 z-10 -translate-x-1/2">
                 <span className="flex h-14 w-14 items-center justify-center rounded-full border border-gold/40 bg-cream shadow-card">
@@ -181,7 +181,7 @@ export default function LoginPage() {
                 </span>
               </div>
 
-              <div className={`rounded-3xl border bg-cream/95 px-6 pb-7 pt-12 backdrop-blur-sm sm:px-8 transition-shadow duration-700 ${cardHighlighted ? 'border-gold/60 shadow-[0_0_0_3px_rgba(177,137,79,0.22),0_8px_24px_-12px_rgba(60,46,30,0.12)]' : 'border-line shadow-card'}`}>
+              <div className="rounded-3xl border border-line bg-cream/95 px-6 pb-7 pt-12 shadow-card backdrop-blur-sm sm:px-8">
                 <div className="text-center">
                   <h2 className="font-serif text-2xl font-semibold tracking-tight text-charcoal">
                     {mode === 'signin' ? 'Welcome back' : 'Create your account'}
