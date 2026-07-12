@@ -323,6 +323,58 @@ export async function deleteProfileDoc(
   await deleteDoc(doc(db, 'profiles', profile.id));
 }
 
+export interface BulkDeleteProfileDocsResult {
+  bulkOperationId: string;
+  deleted: string[];
+  failed: Array<{ uid: string; error: string }>;
+}
+
+export async function bulkDeleteProfileDocs({
+  admin,
+  profiles,
+  reason,
+}: {
+  admin: AdminRecord;
+  profiles: AdminDoc[];
+  reason: string;
+}): Promise<BulkDeleteProfileDocsResult> {
+  const bulkOperationId = `bulk_profile_delete_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const selectedCount = profiles.length;
+  const targetUids = profiles.map((profile) => profile.id);
+  const deleted: string[] = [];
+  const failed: Array<{ uid: string; error: string }> = [];
+
+  await writeAdminAuditLog(admin, {
+    action: 'BULK_DELETE_PROFILE_DOCS',
+    reason,
+    selectedCount,
+    targetUids,
+    bulkOperationId,
+  });
+
+  for (const profile of profiles) {
+    try {
+      await writeAdminAuditLog(admin, {
+        action: 'BULK_DELETE_PROFILE_DOC_ITEM',
+        targetUid: profile.id,
+        reason,
+        beforeSnapshot: profile.data,
+        bulkOperationId,
+        selectedCount,
+      });
+      await deleteDoc(doc(db, 'profiles', profile.id));
+      deleted.push(profile.id);
+    } catch (error) {
+      failed.push({
+        uid: profile.id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  return { bulkOperationId, deleted, failed };
+}
+
 export function docToAdminDoc(snap: QueryDocumentSnapshot<DocumentData>): AdminDoc {
   return { id: snap.id, data: snap.data() as Record<string, unknown> };
 }
