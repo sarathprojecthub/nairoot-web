@@ -14,6 +14,7 @@ import {
   query,
   serverTimestamp,
   updateDoc,
+  where,
   type DocumentData,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
@@ -76,14 +77,58 @@ export interface ParticipantInfo {
 export interface DashboardMetrics {
   users: number | null;
   profiles: number | null;
+  visibleProfiles: number | null;
   completedProfiles: number | null;
   hiddenProfiles: number | null;
   underReviewProfiles: number | null;
   introductions: number | null;
+  acceptedIntroductions: number | null;
   conversations: number | null;
   messages: number | null;
   waitlist: number | null;
   reports: number | null;
+}
+
+export interface AdminMember {
+  uid: string;
+  userDoc: AdminDoc | null;
+  profileDoc: AdminDoc | null;
+  displayName: string;
+  email: string;
+  phone: string;
+  photoUrl: string;
+  initials: string;
+  isTestProfile: boolean;
+  status: string;
+  moderationStatus: string;
+  isVisible: boolean | null;
+  profileExists: boolean;
+  userExists: boolean;
+}
+
+export interface MemberMirrorData {
+  member: AdminMember;
+  introductionsSent: AdminDoc[];
+  introductionsReceived: AdminDoc[];
+  acceptedIntroductions: AdminDoc[];
+  conversations: AdminDoc[];
+  messagesByConversation: Record<string, AdminDoc[]>;
+  profileViewsSent: AdminDoc[];
+  profileViewsReceived: AdminDoc[];
+  notifications: AdminDoc[];
+  reportsByUser: AdminDoc[];
+  reportsAgainstUser: AdminDoc[];
+  waitlist: AdminDoc | null;
+  auditLogs: AdminDoc[];
+  sectionErrors: Record<string, string>;
+}
+
+export interface AdminSearchResult {
+  type: 'member' | 'conversation';
+  id: string;
+  title: string;
+  subtitle: string;
+  href: string;
 }
 
 export const ADMIN_PAGE_LIMIT = 50;
@@ -257,19 +302,194 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
   ]);
 
   const profileDocs = await fetchCollectionDocs('profiles', 200, ['updatedAt', 'createdAt']).catch(() => []);
+  const introDocs = await fetchCollectionDocs('introductions', 200, ['updatedAt', 'createdAt', 'sentAt']).catch(() => []);
 
   return {
     users,
     profiles,
+    visibleProfiles: profileDocs.filter((p) => p.data.isVisible !== false && p.data.moderationStatus !== 'hidden').length,
     completedProfiles: profileDocs.filter((p) => Boolean(p.data.completed || p.data.isComplete || p.data.profileCompleted)).length,
     hiddenProfiles: profileDocs.filter((p) => p.data.moderationStatus === 'hidden' || p.data.isVisible === false).length,
     underReviewProfiles: profileDocs.filter((p) => p.data.moderationStatus === 'under_review').length,
     introductions,
+    acceptedIntroductions: introDocs.filter((intro) => ['accepted', 'matched', 'match'].includes(formatValue(intro.data.status).toLowerCase())).length,
     conversations,
     messages,
     waitlist,
     reports,
   };
+}
+
+export async function resolveAdminMember(uid: string): Promise<AdminMember> {
+  const [userDoc, profileDoc] = await Promise.all([
+    fetchDocument('users', uid).catch(() => null),
+    fetchDocument('profiles', uid).catch(() => null),
+  ]);
+
+  const profile = profileDoc?.data ?? {};
+  const user = userDoc?.data ?? {};
+  const displayName =
+    getString(profile, ['name', 'fullName', 'displayName']) ||
+    getString(user, ['name', 'fullName', 'displayName']) ||
+    shortId(uid);
+  const email = getString(user, ['email']) || getString(profile, ['email']);
+  const phone = getString(user, ['phone', 'phoneNumber']) || getString(profile, ['phone', 'phoneNumber']);
+  const photoUrl =
+    getString(profile, ['photoUrl', 'profilePhoto', 'photo']) ||
+    (Array.isArray(profile.photos) && typeof profile.photos[0] === 'string' ? profile.photos[0] : '');
+  const isVisible = typeof profile.isVisible === 'boolean' ? profile.isVisible : null;
+
+  return {
+    uid,
+    userDoc,
+    profileDoc,
+    displayName,
+    email,
+    phone,
+    photoUrl,
+    initials: initialsFor(displayName),
+    isTestProfile: user.isTestProfile === true || profile.isTestProfile === true,
+    status: formatValue(profile.status ?? profile.profileStatus ?? user.status ?? user.onboardingStatus),
+    moderationStatus: formatValue(profile.moderationStatus ?? (isVisible === false ? 'hidden' : 'visible')),
+    isVisible,
+    profileExists: Boolean(profileDoc),
+    userExists: Boolean(userDoc),
+  };
+}
+
+export async function loadMemberMirror(uid: string): Promise<MemberMirrorData> {
+  const sectionErrors: Record<string, string> = {};
+  const member = await resolveAdminMember(uid);
+
+  const [
+    introductionsSent,
+    introductionsReceived,
+    conversations,
+    profileViewsSent,
+    profileViewsReceived,
+    notifications,
+    reportsByUser,
+    reportsAgainstUser,
+    waitlist,
+    auditLogs,
+  ] = await Promise.all([
+    safeQueryDocs('introductions', [where('senderId', '==', uid)], 'introductionsSent', sectionErrors),
+    safeQueryDocs('introductions', [where('recipientId', '==', uid)], 'introductionsReceived', sectionErrors),
+    safeQueryDocs('conversations', [where('participants', 'array-contains', uid)], 'conversations', sectionErrors),
+    safeQueryDocs('profileViews', [where('viewerUid', '==', uid)], 'profileViewsSent', sectionErrors),
+    safeQueryDocs('profileViews', [where('profileUid', '==', uid)], 'profileViewsReceived', sectionErrors),
+    safeQueryDocs('notifications', [where('recipientUid', '==', uid)], 'notifications', sectionErrors),
+    safeQueryDocs('reports', [where('reporterId', '==', uid)], 'reportsByUser', sectionErrors),
+    safeQueryDocs('reports', [where('reportedUid', '==', uid)], 'reportsAgainstUser', sectionErrors),
+    fetchDocument('premiumWaitlist', uid).catch((error) => {
+      sectionErrors.waitlist = errorMessage(error);
+      return null;
+    }),
+    safeQueryDocs('adminAuditLogs', [where('targetUid', '==', uid)], 'auditLogs', sectionErrors),
+  ]);
+
+  const messagesByConversation: Record<string, AdminDoc[]> = {};
+  await Promise.all(
+    conversations.slice(0, 25).map(async (conversation) => {
+      try {
+        messagesByConversation[conversation.id] = await fetchConversationMessages(conversation.id);
+      } catch (error) {
+        sectionErrors[`messages:${conversation.id}`] = errorMessage(error);
+        messagesByConversation[conversation.id] = [];
+      }
+    }),
+  );
+
+  const acceptedIntroductions = [...introductionsSent, ...introductionsReceived].filter((intro) =>
+    ['accepted', 'matched', 'match'].includes(formatValue(intro.data.status).toLowerCase()),
+  );
+
+  return {
+    member,
+    introductionsSent,
+    introductionsReceived,
+    acceptedIntroductions,
+    conversations,
+    messagesByConversation,
+    profileViewsSent,
+    profileViewsReceived,
+    notifications,
+    reportsByUser,
+    reportsAgainstUser,
+    waitlist,
+    auditLogs,
+    sectionErrors,
+  };
+}
+
+export async function resolveAdminSearch(search: string): Promise<AdminSearchResult[]> {
+  const term = search.trim();
+  if (!term) return [];
+  const lower = term.toLowerCase();
+  const results: AdminSearchResult[] = [];
+
+  const [directUser, directProfile, directConversation] = await Promise.all([
+    fetchDocument('users', term).catch(() => null),
+    fetchDocument('profiles', term).catch(() => null),
+    fetchDocument('conversations', term).catch(() => null),
+  ]);
+
+  if (directUser || directProfile) {
+    const member = await resolveAdminMember(term);
+    results.push(memberSearchResult(member, 'Exact UID/profile match'));
+  }
+
+  if (directConversation) {
+    results.push({
+      type: 'conversation',
+      id: directConversation.id,
+      title: `Conversation ${shortId(directConversation.id)}`,
+      subtitle: 'Exact conversation ID match',
+      href: `/admin/conversations/${directConversation.id}`,
+    });
+  }
+
+  const [users, profiles] = await Promise.all([
+    fetchCollectionDocs('users', 150, ['updatedAt', 'createdAt']).catch(() => []),
+    fetchCollectionDocs('profiles', 150, ['updatedAt', 'createdAt']).catch(() => []),
+  ]);
+
+  const candidateUids = new Set<string>();
+  users.forEach((doc) => {
+    const haystack = [
+      doc.id,
+      doc.data.email,
+      doc.data.phone,
+      doc.data.phoneNumber,
+      doc.data.name,
+      doc.data.displayName,
+      doc.data.matrimonyId,
+      doc.data.memberId,
+      doc.data.profileId,
+    ].map(formatValue).join(' ').toLowerCase();
+    if (haystack.includes(lower)) candidateUids.add(doc.id);
+  });
+  profiles.forEach((doc) => {
+    const haystack = [
+      doc.id,
+      doc.data.name,
+      doc.data.fullName,
+      doc.data.city,
+      doc.data.profession,
+      doc.data.matrimonyId,
+      doc.data.memberId,
+      doc.data.profileId,
+    ].map(formatValue).join(' ').toLowerCase();
+    if (haystack.includes(lower)) candidateUids.add(doc.id);
+  });
+
+  for (const uid of Array.from(candidateUids).slice(0, 12)) {
+    if (!results.some((result) => result.type === 'member' && result.id === uid)) {
+      results.push(memberSearchResult(await resolveAdminMember(uid), 'Matched recent users/profiles'));
+    }
+  }
+
+  return results;
 }
 
 export async function writeAdminAuditLog(
@@ -523,6 +743,10 @@ export function getArray(data: Record<string, unknown>, key: string): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
+export function participantUidsFromConversation(data: Record<string, unknown>): string[] {
+  return getArray(data, 'participants');
+}
+
 export function matchesSearch(doc: AdminDoc, search: string, fields: string[]): boolean {
   const q = search.trim().toLowerCase();
   if (!q) return true;
@@ -537,6 +761,36 @@ export async function copyToClipboard(value: string): Promise<void> {
 
 function omitUndefined(input: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined));
+}
+
+function memberSearchResult(member: AdminMember, subtitle: string): AdminSearchResult {
+  return {
+    type: 'member',
+    id: member.uid,
+    title: member.displayName,
+    subtitle: `${subtitle} · ${member.email || member.phone || shortId(member.uid)}`,
+    href: `/admin/users/${member.uid}`,
+  };
+}
+
+async function safeQueryDocs(
+  collectionName: string,
+  constraints: Parameters<typeof query>[1][],
+  section: string,
+  errors: Record<string, string>,
+  pageLimit = ADMIN_PAGE_LIMIT,
+): Promise<AdminDoc[]> {
+  try {
+    const snap = await getDocs(query(collection(db, collectionName), ...constraints, limit(pageLimit)));
+    return snap.docs.map(docToAdminDoc);
+  } catch (error) {
+    errors[section] = errorMessage(error);
+    return [];
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'This section could not be loaded.';
 }
 
 async function safeCount(collectionName: string): Promise<number | null> {
