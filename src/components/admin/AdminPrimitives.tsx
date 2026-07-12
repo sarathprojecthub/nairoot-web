@@ -7,10 +7,12 @@ import { copyToClipboard, formatDate, formatValue, type AdminDoc } from '@/lib/a
 export function AdminPageHeader({
   title,
   eyebrow,
+  subtitle,
   children,
 }: {
   title: string;
   eyebrow?: string;
+  subtitle?: string;
   children?: ReactNode;
 }) {
   return (
@@ -18,6 +20,7 @@ export function AdminPageHeader({
       <div>
         {eyebrow && <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold">{eyebrow}</p>}
         <h2 className="mt-1 font-serif text-3xl font-semibold text-charcoal">{title}</h2>
+        {subtitle && <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">{subtitle}</p>}
       </div>
       {children}
     </div>
@@ -75,7 +78,7 @@ export function ErrorState({ message }: { message: string }) {
   );
 }
 
-export function RawJson({ data, label = 'Raw JSON' }: { data: unknown; label?: string }) {
+export function RawJson({ data, label = 'View raw data' }: { data: unknown; label?: string }) {
   return (
     <details className="mt-3 rounded-xl border border-line bg-ivory/70 p-3">
       <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.16em] text-muted">{label}</summary>

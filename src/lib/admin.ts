@@ -61,6 +61,18 @@ export interface AdminMessage extends AdminDoc {
   conversationId: string;
 }
 
+export interface ParticipantInfo {
+  uid: string;
+  displayName: string;
+  email: string;
+  photoUrl: string;
+  initials: string;
+  profileExists: boolean;
+  userExists: boolean;
+  profileStatus: string;
+  moderationStatus: string;
+}
+
 export interface DashboardMetrics {
   users: number | null;
   profiles: number | null;
@@ -337,6 +349,113 @@ export function formatDate(value: unknown): string {
     return Number.isNaN(parsed) ? value : new Date(parsed).toLocaleString();
   }
   return '—';
+}
+
+export function formatDateHeading(value: unknown): string {
+  const ms = toMillis(value);
+  if (!ms) return 'Undated';
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(ms));
+}
+
+export function formatTime(value: unknown): string {
+  const ms = toMillis(value);
+  if (!ms) return 'Time unknown';
+  return new Intl.DateTimeFormat(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(new Date(ms));
+}
+
+export function formatRelativeTime(value: unknown): string {
+  const ms = toMillis(value);
+  if (!ms) return 'Unknown time';
+  const diff = Date.now() - ms;
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  if (diff < minute) return 'Just now';
+  if (diff < hour) return `${Math.floor(diff / minute)}m ago`;
+  if (diff < day) return `${Math.floor(diff / hour)}h ago`;
+  if (diff < 7 * day) return `${Math.floor(diff / day)}d ago`;
+  return formatDate(value);
+}
+
+export function shortId(value: string, head = 8, tail = 5): string {
+  if (!value) return '—';
+  if (value.length <= head + tail + 1) return value;
+  return `${value.slice(0, head)}…${value.slice(-tail)}`;
+}
+
+export function messageText(data: Record<string, unknown>): string {
+  return getString(data, ['text', 'body', 'message']) || 'No message text';
+}
+
+export function messageSenderId(data: Record<string, unknown>): string {
+  return getString(data, ['senderId', 'senderUid', 'from']);
+}
+
+export function messageTimestamp(data: Record<string, unknown>): unknown {
+  return data.createdAt ?? data.sentAt ?? data.timestamp ?? data.updatedAt;
+}
+
+export function isMessageDeleted(data: Record<string, unknown>): boolean {
+  return data.deleted === true || data.hidden === true;
+}
+
+export function readByList(data: Record<string, unknown>): string[] {
+  const value = data.readBy;
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+export function hasReadMetadata(data: Record<string, unknown>): boolean {
+  return readByList(data).length > 0 || data.readAt != null || data.readBy != null;
+}
+
+export function initialsFor(nameOrUid: string): string {
+  const clean = nameOrUid.trim();
+  if (!clean) return 'U';
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return clean.slice(0, 2).toUpperCase();
+}
+
+export async function resolveParticipants(uids: string[]): Promise<Record<string, ParticipantInfo>> {
+  const unique = Array.from(new Set(uids.filter(Boolean)));
+  const entries = await Promise.all(unique.map(async (uid) => {
+    const [profile, user] = await Promise.all([
+      fetchDocument('profiles', uid).catch(() => null),
+      fetchDocument('users', uid).catch(() => null),
+    ]);
+    const displayName =
+      (profile ? getString(profile.data, ['name', 'fullName', 'displayName']) : '') ||
+      (user ? getString(user.data, ['name', 'fullName', 'displayName']) : '') ||
+      shortId(uid);
+    const email = user ? getString(user.data, ['email']) : '';
+    const photoUrl =
+      (profile ? getString(profile.data, ['photo', 'photoUrl', 'profilePhoto']) : '') ||
+      (profile && Array.isArray(profile.data.photos) && typeof profile.data.photos[0] === 'string' ? profile.data.photos[0] : '');
+
+    return [
+      uid,
+      {
+        uid,
+        displayName,
+        email: email || 'No email found',
+        photoUrl,
+        initials: initialsFor(displayName),
+        profileExists: Boolean(profile),
+        userExists: Boolean(user),
+        profileStatus: formatValue(profile?.data.status ?? profile?.data.profileStatus ?? profile?.data.isVisible),
+        moderationStatus: formatValue(profile?.data.moderationStatus),
+      },
+    ] as const;
+  }));
+
+  return Object.fromEntries(entries);
 }
 
 export function getString(data: Record<string, unknown>, keys: string[]): string {
