@@ -41,3 +41,49 @@ body {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line-strong) transparent;
 }
+
+.admin-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--color-maroon);
+  color: var(--color-cream);
+  padding: 0.65rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  transition: background-color 160ms ease, opacity 160ms ease;
+}
+
+.admin-primary:hover {
+  background: var(--color-maroon-deep);
+}
+
+.admin-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.admin-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-cream);
+  color: var(--color-maroon);
+  padding: 0.55rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  transition: border-color 160ms ease, background-color 160ms ease, opacity 160ms ease;
+}
+
+.admin-secondary:hover {
+  border-color: var(--color-gold);
+  background: var(--color-ivory-deep);
+}
+
+.admin-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
