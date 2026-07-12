@@ -153,6 +153,7 @@ function MemberMirror({ admin, uid }: { admin: AdminRecord; uid: string }) {
 
   if (error) return <ErrorState message={error} />;
   if (!mirror) return <EmptyState title="Loading Member Mirror" body="Gathering account, profile, requests, conversations, messages, and safety context." />;
+  if (!mirror.member.userExists && !mirror.member.profileExists) return <MemberNotFound uid={uid} />;
 
   return (
     <>
@@ -194,6 +195,35 @@ function MemberMirror({ admin, uid }: { admin: AdminRecord; uid: string }) {
   );
 }
 
+function MemberNotFound({ uid }: { uid: string }) {
+  return (
+    <>
+      <AdminPageHeader
+        title="Member Mirror"
+        eyebrow="User 360"
+        subtitle="No user or profile document exists for this UID / Profile ID."
+      >
+        <Link href="/admin" className="admin-secondary">Back to dashboard</Link>
+      </AdminPageHeader>
+      <DataCard className="p-8">
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gold">No member found</p>
+          <h3 className="mt-2 font-serif text-3xl font-semibold text-charcoal">No member found for this UID</h3>
+          <p className="mt-3 text-sm leading-relaxed text-muted">
+            The Admin Console checked both <span className="font-mono">users/{uid}</span> and <span className="font-mono">profiles/{uid}</span>.
+            Neither document exists. This can happen for a mistyped UID, a deleted test profile, or an account that has not created any Firestore records yet.
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <CopyButton value={uid} label="Copy searched UID" />
+            <Link href="/admin/users" className="admin-secondary">Open member directory</Link>
+            <Link href="/admin" className="admin-primary">Search again</Link>
+          </div>
+        </div>
+      </DataCard>
+    </>
+  );
+}
+
 function IdentityCard({
   member,
   busy,
@@ -218,7 +248,8 @@ function IdentityCard({
               <StatusPill tone={member.userExists ? 'good' : 'warn'}>{member.userExists ? 'User doc exists' : 'No user doc'}</StatusPill>
             </div>
             <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
-              <p><span className="text-muted">UID:</span> <span className="font-mono">{shortId(member.uid)}</span></p>
+              <p><span className="text-muted">UID / Profile ID:</span> <span className="font-mono">{shortId(member.uid)}</span></p>
+              <p><span className="text-muted">Matrimony ID:</span> {formatValue(member.profileDoc?.data.matrimonyId ?? member.profileDoc?.data.memberId ?? member.userDoc?.data.matrimonyId ?? member.userDoc?.data.memberId ?? 'Not assigned')}</p>
               <p><span className="text-muted">Email:</span> {member.email || 'No email found'}</p>
               <p><span className="text-muted">Phone:</span> {member.phone || 'No phone found'}</p>
               <p><span className="text-muted">Location:</span> {formatValue(member.profileDoc?.data.city ?? member.userDoc?.data.city)}</p>

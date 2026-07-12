@@ -436,7 +436,7 @@ export async function resolveAdminSearch(search: string): Promise<AdminSearchRes
 
   if (directUser || directProfile) {
     const member = await resolveAdminMember(term);
-    results.push(memberSearchResult(member, 'Exact UID/profile match'));
+    results.push(memberSearchResult(member, 'Exact member found'));
   }
 
   if (directConversation) {
@@ -444,9 +444,20 @@ export async function resolveAdminSearch(search: string): Promise<AdminSearchRes
       type: 'conversation',
       id: directConversation.id,
       title: `Conversation ${shortId(directConversation.id)}`,
-      subtitle: 'Exact conversation ID match',
+      subtitle: `Exact conversation found · ${participantUidsFromConversation(directConversation.data).map((uid) => shortId(uid)).join(' and ') || shortId(directConversation.id)}`,
       href: `/admin/conversations/${directConversation.id}`,
     });
+  }
+
+  try {
+    const emailSnap = await getDocs(query(collection(db, 'users'), where('email', '==', term), limit(5)));
+    for (const userSnap of emailSnap.docs) {
+      if (!results.some((result) => result.type === 'member' && result.id === userSnap.id)) {
+        results.push(memberSearchResult(await resolveAdminMember(userSnap.id), 'Exact email found'));
+      }
+    }
+  } catch {
+    // Email lookup is an enhancement; recent loaded fallback below still works when indexes/rules block it.
   }
 
   const [users, profiles] = await Promise.all([
@@ -764,11 +775,18 @@ function omitUndefined(input: Record<string, unknown>): Record<string, unknown> 
 }
 
 function memberSearchResult(member: AdminMember, subtitle: string): AdminSearchResult {
+  const existence = member.profileExists && member.userExists
+    ? 'Profile and user records exist'
+    : member.profileExists
+      ? 'Profile exists · user record missing'
+      : member.userExists
+        ? 'User exists · profile not created or deleted'
+        : 'No profile/user record found';
   return {
     type: 'member',
     id: member.uid,
     title: member.displayName,
-    subtitle: `${subtitle} · ${member.email || member.phone || shortId(member.uid)}`,
+    subtitle: `${subtitle} · ${existence} · UID / Profile ID ${shortId(member.uid)}${member.email ? ` · ${member.email}` : ''}`,
     href: `/admin/users/${member.uid}`,
   };
 }

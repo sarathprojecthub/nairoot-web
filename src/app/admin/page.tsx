@@ -8,6 +8,7 @@ import { AdminPageHeader, DataCard, EmptyState, ErrorState, StatCard, StatusPill
 import {
   fetchCollectionDocs,
   fetchDashboardMetrics,
+  fetchDocument,
   formatDate,
   resolveAdminSearch,
   shortId,
@@ -41,6 +42,7 @@ function Dashboard() {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<AdminSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,12 +52,21 @@ function Dashboard() {
 
   async function runSearch(event?: React.FormEvent) {
     event?.preventDefault();
-    if (!search.trim()) return;
+    const term = search.trim();
+    if (!term) {
+      setSearchError('Enter a UID, profile ID, email, name, or conversation ID to search.');
+      return;
+    }
     setSearching(true);
+    setSearchError(null);
     try {
-      const found = await resolveAdminSearch(search);
+      const [found, conversation] = await Promise.all([
+        resolveAdminSearch(term).catch(() => []),
+        fetchDocument('conversations', term).catch(() => null),
+      ]);
       setResults(found);
-      if (found.length === 1) router.push(found[0].href);
+      if (conversation) router.push(`/admin/conversations/${encodeURIComponent(term)}`);
+      else router.push(`/admin/users/${encodeURIComponent(term)}`);
     } finally {
       setSearching(false);
     }
@@ -85,7 +96,12 @@ function Dashboard() {
             {searching ? 'Searching...' : 'Open Member Mirror'}
           </button>
         </form>
-        <p className="mt-3 text-sm text-cream/75">Matrimony ID is searched if available in the current profile/user schema.</p>
+        <p className="mt-3 text-sm text-cream/75">Search by UID, email, name, profile ID, conversation ID, or matrimony ID if available.</p>
+        {searchError && (
+          <p className="mt-3 rounded-2xl border border-cream/15 bg-cream/10 px-4 py-3 text-sm text-cream">
+            {searchError}
+          </p>
+        )}
         {results.length > 1 && (
           <div className="mt-5 grid gap-3">
             {results.map((result) => (
@@ -96,9 +112,9 @@ function Dashboard() {
             ))}
           </div>
         )}
-        {search && !searching && results.length === 0 && (
+        {search && !searching && results.length === 0 && !searchError && (
           <p className="mt-4 rounded-2xl border border-cream/15 bg-cream/10 px-4 py-3 text-sm text-cream/80">
-            No exact or recent loaded match yet. Try UID, email, profile name, or conversation ID.
+            No preview match loaded yet. You can still open Member Mirror for this UID / Profile ID.
           </p>
         )}
       </DataCard>
