@@ -39,6 +39,19 @@ export interface AdminRecord {
   permissions: Partial<Record<AdminPermission, boolean>>;
 }
 
+export interface AdminDebugInfo {
+  currentUid: string;
+  currentEmail: string | null;
+  adminDocPath: string;
+  getDocSucceeded: boolean;
+  docExists: boolean | null;
+  activeValue: unknown;
+  roleValue: unknown;
+  permissionChecked?: AdminPermission;
+  firestoreErrorCode?: string;
+  firestoreErrorMessage?: string;
+}
+
 export interface AdminDoc {
   id: string;
   data: Record<string, unknown>;
@@ -78,7 +91,7 @@ export function hasPermission(admin: AdminRecord | null, permission: AdminPermis
 }
 
 export async function fetchAdminRecord(user: User): Promise<AdminRecord | null> {
-  const snap = await getDoc(doc(db, 'admins', user.uid));
+  const snap = await getDoc(adminRefForUser(user));
   if (!snap.exists()) return null;
   const data = snap.data();
   if (data.active !== true) return null;
@@ -89,6 +102,60 @@ export async function fetchAdminRecord(user: User): Promise<AdminRecord | null> 
     active: true,
     permissions: (data.permissions ?? {}) as Partial<Record<AdminPermission, boolean>>,
   };
+}
+
+export function adminRefForUser(user: User) {
+  return doc(db, 'admins', user.uid);
+}
+
+export function adminDocPathForUid(uid: string): string {
+  return `admins/${uid}`;
+}
+
+export async function checkAdminRecord(
+  user: User,
+  permissionChecked?: AdminPermission,
+): Promise<{ record: AdminRecord | null; debug: AdminDebugInfo }> {
+  const debug: AdminDebugInfo = {
+    currentUid: user.uid,
+    currentEmail: user.email,
+    adminDocPath: adminDocPathForUid(user.uid),
+    getDocSucceeded: false,
+    docExists: null,
+    activeValue: undefined,
+    roleValue: undefined,
+    permissionChecked,
+  };
+
+  try {
+    const snap = await getDoc(adminRefForUser(user));
+    debug.getDocSucceeded = true;
+    debug.docExists = snap.exists();
+
+    if (!snap.exists()) return { record: null, debug };
+
+    const data = snap.data();
+    debug.activeValue = data.active;
+    debug.roleValue = data.role;
+
+    if (data.active !== true) return { record: null, debug };
+
+    return {
+      record: {
+        uid: user.uid,
+        email: typeof data.email === 'string' ? data.email : user.email ?? undefined,
+        role: typeof data.role === 'string' ? data.role : 'admin',
+        active: true,
+        permissions: (data.permissions ?? {}) as Partial<Record<AdminPermission, boolean>>,
+      },
+      debug,
+    };
+  } catch (error) {
+    const err = error as { code?: string; message?: string };
+    debug.firestoreErrorCode = err.code;
+    debug.firestoreErrorMessage = err.message;
+    return { record: null, debug };
+  }
 }
 
 export async function fetchCollectionDocs(

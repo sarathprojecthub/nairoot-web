@@ -5,8 +5,9 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import {
-  fetchAdminRecord,
+  checkAdminRecord,
   hasPermission,
+  type AdminDebugInfo,
   type AdminPermission,
   type AdminRecord,
 } from '@/lib/admin';
@@ -33,6 +34,7 @@ export function AdminShell({
   const pathname = usePathname();
   const { user, loading } = useAuth();
   const [admin, setAdmin] = useState<AdminRecord | null>(null);
+  const [debug, setDebug] = useState<AdminDebugInfo | null>(null);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,6 +45,7 @@ export function AdminShell({
       if (loading) return;
       if (!user) {
         setAdmin(null);
+        setDebug(null);
         setChecking(false);
         return;
       }
@@ -50,8 +53,11 @@ export function AdminShell({
       setChecking(true);
       setError(null);
       try {
-        const record = await fetchAdminRecord(user);
-        if (alive) setAdmin(record);
+        const result = await checkAdminRecord(user, permission);
+        if (alive) {
+          setAdmin(result.record);
+          setDebug(result.debug);
+        }
       } catch (err) {
         if (alive) setError(err instanceof Error ? err.message : 'Unable to verify admin access.');
       } finally {
@@ -63,7 +69,7 @@ export function AdminShell({
     return () => {
       alive = false;
     };
-  }, [loading, user]);
+  }, [loading, permission, user]);
 
   if (loading || checking) {
     return <AdminFrame pathname={pathname} admin={admin}><CenteredState title="Checking admin access" /></AdminFrame>;
@@ -87,6 +93,8 @@ export function AdminShell({
         <CenteredState
           title="Access denied"
           body="This route is available only to active admins with the required permission."
+          debug={debug}
+          error={error}
         />
       </AdminFrame>
     );
@@ -175,10 +183,14 @@ function CenteredState({
   title,
   body,
   action,
+  debug,
+  error,
 }: {
   title: string;
   body?: string;
   action?: ReactNode;
+  debug?: AdminDebugInfo | null;
+  error?: string | null;
 }) {
   return (
     <div className="flex min-h-[55vh] items-center justify-center">
@@ -186,7 +198,35 @@ function CenteredState({
         <h2 className="font-serif text-2xl font-semibold text-charcoal">{title}</h2>
         {body && <p className="mt-3 text-sm leading-relaxed text-muted">{body}</p>}
         {action && <div className="mt-6">{action}</div>}
+        {process.env.NODE_ENV === 'development' && debug && (
+          <details className="mt-6 rounded-2xl border border-line bg-ivory p-4 text-left">
+            <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+              Admin access debug
+            </summary>
+            <dl className="mt-3 space-y-2 break-words text-xs text-ink/80">
+              <DebugRow label="Current Firebase UID" value={debug.currentUid} />
+              <DebugRow label="Current email" value={debug.currentEmail ?? 'null'} />
+              <DebugRow label="Admin doc path" value={debug.adminDocPath} />
+              <DebugRow label="getDoc succeeded" value={String(debug.getDocSucceeded)} />
+              <DebugRow label="Admin doc exists" value={String(debug.docExists)} />
+              <DebugRow label="Active value" value={String(debug.activeValue)} />
+              <DebugRow label="Role value" value={String(debug.roleValue)} />
+              <DebugRow label="Permission checked" value={debug.permissionChecked ?? 'none'} />
+              <DebugRow label="Firestore error code" value={debug.firestoreErrorCode ?? 'none'} />
+              <DebugRow label="Firestore error message" value={debug.firestoreErrorMessage ?? error ?? 'none'} />
+            </dl>
+          </details>
+        )}
       </div>
+    </div>
+  );
+}
+
+function DebugRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="font-semibold text-muted">{label}</dt>
+      <dd className="font-mono">{value}</dd>
     </div>
   );
 }

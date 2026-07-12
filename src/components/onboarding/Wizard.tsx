@@ -15,6 +15,7 @@ import { saveOnboardingDraft, loadOnboardingDraft } from '@/lib/onboarding/draft
 import type { OnboardingDraft } from '@/lib/onboarding/draft';
 import { completeProfile } from '@/lib/onboarding/complete';
 import { BIO_MIN_CHARS } from '@/lib/onboarding/options';
+import { logout } from '@/lib/auth';
 import type {
   CreatingFor, Gender, Religion, MaritalStatus, EmploymentType,
   FamilyType, HoroscopePreference, AgeRangePreference,
@@ -178,6 +179,11 @@ export function OnboardingWizard() {
     setStepIndex((i) => i + 1);
   }
 
+  async function handleSignOut() {
+    await logout();
+    router.replace('/login');
+  }
+
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA' && canContinue && !busy) {
       e.preventDefault();
@@ -203,6 +209,13 @@ export function OnboardingWizard() {
         onBack={stepIndex > 0 ? () => { setError(null); setStepIndex((i) => Math.max(i - 1, 0)); } : undefined}
         footer={
           <>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="rounded-full border border-line-strong bg-cream px-5 py-2.5 text-sm font-semibold text-maroon transition hover:border-gold/60 hover:bg-ivory-deep"
+            >
+              Sign out
+            </button>
             <div className="sm:ml-auto sm:w-64">
               <PrimaryButton onClick={handleContinue} disabled={!canContinue} loading={busy}>{meta.cta}</PrimaryButton>
             </div>
