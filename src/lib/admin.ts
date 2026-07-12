@@ -314,13 +314,13 @@ export async function deleteProfileDoc(
   reason: string,
 ): Promise<void> {
   const beforeSnapshot = profile.data;
-  await deleteDoc(doc(db, 'profiles', profile.id));
   await writeAdminAuditLog(admin, {
     action: 'DELETE_PROFILE_DOC',
     targetUid: profile.id,
     reason,
     beforeSnapshot,
   });
+  await deleteDoc(doc(db, 'profiles', profile.id));
 }
 
 export function docToAdminDoc(snap: QueryDocumentSnapshot<DocumentData>): AdminDoc {

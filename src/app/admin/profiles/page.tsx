@@ -44,6 +44,10 @@ function Profiles({ admin }: { admin: AdminRecord }) {
   const [filter, setFilter] = useState<Filter>('all');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminDoc | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCollectionDocs('profiles', 50, ['updatedAt', 'createdAt']).then(setDocs).catch((err) => setError(err instanceof Error ? err.message : 'Profiles failed to load.'));
@@ -64,33 +68,60 @@ function Profiles({ admin }: { admin: AdminRecord }) {
     });
   }, [docs, filter, search]);
 
-  async function runAction(profile: AdminDoc, action: 'hide' | 'unhide' | 'review' | 'delete') {
+  async function runAction(profile: AdminDoc, action: 'hide' | 'unhide' | 'review') {
     const reason = window.prompt('Reason for this admin action');
     if (!reason) return;
-    if (action === 'delete' && !window.confirm('Delete this profile document only? Auth user and Storage photos will not be deleted.')) return;
     setBusy(`${profile.id}:${action}`);
     try {
-      if (action === 'delete') await deleteProfileDoc(admin, profile, reason);
-      else await setProfileModerationStatus(admin, profile, action === 'hide' ? 'hidden' : action === 'unhide' ? 'visible' : 'under_review', reason);
-      setDocs((current) => current.filter((doc) => action !== 'delete' || doc.id !== profile.id));
-      if (action !== 'delete') {
-        setDocs((current) =>
-          current.map((doc) =>
-            doc.id === profile.id
-              ? {
-                  ...doc,
-                  data: {
-                    ...doc.data,
-                    moderationStatus: action === 'hide' ? 'hidden' : action === 'unhide' ? 'visible' : 'under_review',
-                    ...(action === 'hide' ? { isVisible: false } : action === 'unhide' ? { isVisible: true } : {}),
-                  },
-                }
-              : doc,
-          ),
-        );
-      }
+      await setProfileModerationStatus(admin, profile, action === 'hide' ? 'hidden' : action === 'unhide' ? 'visible' : 'under_review', reason);
+      setDocs((current) =>
+        current.map((doc) =>
+          doc.id === profile.id
+            ? {
+                ...doc,
+                data: {
+                  ...doc.data,
+                  moderationStatus: action === 'hide' ? 'hidden' : action === 'unhide' ? 'visible' : 'under_review',
+                  ...(action === 'hide' ? { isVisible: false } : action === 'unhide' ? { isVisible: true } : {}),
+                },
+              }
+            : doc,
+        ),
+      );
+      setNotice(`Profile ${action === 'hide' ? 'hidden' : action === 'unhide' ? 'unhidden' : 'marked under review'}.`);
     } catch (err) {
       window.alert(err instanceof Error ? err.message : 'Admin action failed.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function openDeleteModal(profile: AdminDoc) {
+    setDeleteTarget(profile);
+    setDeleteReason('');
+    setDeleteConfirmed(false);
+    setNotice(null);
+  }
+
+  function closeDeleteModal() {
+    if (busy === `${deleteTarget?.id}:delete`) return;
+    setDeleteTarget(null);
+    setDeleteReason('');
+    setDeleteConfirmed(false);
+  }
+
+  async function confirmDeleteProfile() {
+    if (!deleteTarget || !deleteReason.trim() || !deleteConfirmed) return;
+    setBusy(`${deleteTarget.id}:delete`);
+    try {
+      await deleteProfileDoc(admin, deleteTarget, deleteReason.trim());
+      setDocs((current) => current.filter((doc) => doc.id !== deleteTarget.id));
+      setNotice(`Deleted profile document profiles/${deleteTarget.id}.`);
+      setDeleteTarget(null);
+      setDeleteReason('');
+      setDeleteConfirmed(false);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Profile delete failed.');
     } finally {
       setBusy(null);
     }
@@ -101,6 +132,11 @@ function Profiles({ admin }: { admin: AdminRecord }) {
       <AdminPageHeader title="Profiles" eyebrow="Profile moderation">
         <SearchBox value={search} onChange={setSearch} placeholder="Search name, UID, location, profession" />
       </AdminPageHeader>
+      {notice && (
+        <div className="mb-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700">
+          {notice}
+        </div>
+      )}
       <div className="mb-4 flex flex-wrap gap-2">
         {(['all', 'completed', 'incomplete', 'hidden', 'under_review'] as Filter[]).map((item) => (
           <button
@@ -149,7 +185,7 @@ function Profiles({ admin }: { admin: AdminRecord }) {
                     <button disabled={busy === `${profile.id}:hide`} onClick={() => runAction(profile, 'hide')} className="admin-secondary">Hide profile</button>
                     <button disabled={busy === `${profile.id}:unhide`} onClick={() => runAction(profile, 'unhide')} className="admin-secondary">Unhide profile</button>
                     <button disabled={busy === `${profile.id}:review`} onClick={() => runAction(profile, 'review')} className="admin-secondary">Mark under review</button>
-                    <button disabled={busy === `${profile.id}:delete`} onClick={() => runAction(profile, 'delete')} className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">Delete profile doc</button>
+                    <button disabled={busy === `${profile.id}:delete`} onClick={() => openDeleteModal(profile)} className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100">Delete profile doc</button>
                   </div>
                 </div>
               </DataCard>
@@ -157,6 +193,118 @@ function Profiles({ admin }: { admin: AdminRecord }) {
           })}
         </div>
       )}
+      {deleteTarget && (
+        <DeleteProfileModal
+          profile={deleteTarget}
+          reason={deleteReason}
+          confirmed={deleteConfirmed}
+          busy={busy === `${deleteTarget.id}:delete`}
+          setReason={setDeleteReason}
+          setConfirmed={setDeleteConfirmed}
+          onCancel={closeDeleteModal}
+          onDelete={confirmDeleteProfile}
+        />
+      )}
     </>
+  );
+}
+
+function DeleteProfileModal({
+  profile,
+  reason,
+  confirmed,
+  busy,
+  setReason,
+  setConfirmed,
+  onCancel,
+  onDelete,
+}: {
+  profile: AdminDoc;
+  reason: string;
+  confirmed: boolean;
+  busy: boolean;
+  setReason: (value: string) => void;
+  setConfirmed: (value: boolean) => void;
+  onCancel: () => void;
+  onDelete: () => void;
+}) {
+  const canDelete = reason.trim().length > 0 && confirmed && !busy;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/45 px-4 py-6">
+      <div role="dialog" aria-modal="true" aria-labelledby="delete-profile-title" className="w-full max-w-xl rounded-3xl border border-red-200 bg-cream p-6 shadow-card">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-700">Destructive profile action</p>
+            <h2 id="delete-profile-title" className="mt-2 font-serif text-2xl font-semibold text-charcoal">Delete profile document?</h2>
+          </div>
+          <button type="button" onClick={onCancel} disabled={busy} className="rounded-full border border-line bg-ivory px-3 py-1 text-sm font-semibold text-muted hover:border-gold">
+            Cancel
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-4 text-sm leading-relaxed text-ink/80">
+          <p>
+            This will delete only the public profile document:
+            <br />
+            <span className="font-mono text-charcoal">profiles/{profile.id}</span>
+          </p>
+
+          <div className="rounded-2xl border border-line bg-ivory p-4">
+            <p className="font-semibold text-charcoal">This will not delete:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
+              <li>Firebase Auth user</li>
+              <li><span className="font-mono">users/{profile.id}</span></li>
+              <li>Storage photos</li>
+              <li>conversations or messages</li>
+              <li>introductions</li>
+              <li>audit logs</li>
+            </ul>
+          </div>
+
+          <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 font-medium text-amber-800">
+            Use this only for test profiles, broken profiles, or profiles that should be removed from discovery. For real users, hiding the profile is usually safer.
+          </p>
+        </div>
+
+        <label className="mt-5 block text-sm font-semibold text-charcoal" htmlFor="delete-profile-reason">
+          Reason for deletion
+        </label>
+        <textarea
+          id="delete-profile-reason"
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          disabled={busy}
+          rows={3}
+          placeholder="Example: duplicate test profile created during QA"
+          className="mt-2 w-full resize-none rounded-2xl border border-line-strong bg-ivory px-4 py-3 text-sm outline-none transition focus:border-gold focus:ring-2 focus:ring-gold/20"
+        />
+
+        <label className="mt-4 flex items-start gap-3 rounded-2xl border border-line bg-ivory p-4 text-sm text-ink/80">
+          <input
+            type="checkbox"
+            checked={confirmed}
+            onChange={(event) => setConfirmed(event.target.checked)}
+            disabled={busy}
+            className="mt-1 h-4 w-4 rounded border-line-strong"
+          />
+          <span>I understand this deletes only the profile document.</span>
+        </label>
+
+        <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <button type="button" onClick={onCancel} disabled={busy} className="admin-secondary">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={!canDelete}
+            className="rounded-full border border-red-700 bg-red-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {busy ? 'Deleting...' : 'Delete profile document'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
