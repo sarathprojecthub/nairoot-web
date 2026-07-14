@@ -15,6 +15,7 @@ import {
 const navItems: Array<{ href: string; label: string; permission: AdminPermission }> = [
   { href: '/admin', label: 'Dashboard', permission: 'viewDashboard' },
   { href: '/admin/users', label: 'Users', permission: 'viewUsers' },
+  { href: '/admin/deletion-requests', label: 'Deletion Requests', permission: 'viewUsers' },
   { href: '/admin/profiles', label: 'Profiles', permission: 'viewProfiles' },
   { href: '/admin/introductions', label: 'Introductions', permission: 'viewConversations' },
   { href: '/admin/conversations', label: 'Conversations', permission: 'viewConversations' },

@@ -13,6 +13,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
   type DocumentData,
@@ -56,6 +57,28 @@ export interface AdminDebugInfo {
 export interface AdminDoc {
   id: string;
   data: Record<string, unknown>;
+}
+
+export type DeletionRequestStatus = 'requested' | 'verifying' | 'processing' | 'completed' | 'rejected';
+export type DeletionRequestSource =
+  | 'android_account_settings'
+  | 'web_delete_account_page'
+  | 'admin_created'
+  | 'email_manual';
+
+export interface DeletionRequestInput {
+  userId?: string;
+  email: string;
+  profileName?: string;
+  status: DeletionRequestStatus;
+  source: DeletionRequestSource;
+  requestNote?: string;
+  adminNotes?: string;
+}
+
+export interface DeletionRequestUpdate {
+  status?: DeletionRequestStatus;
+  adminNotes?: string;
 }
 
 export interface AdminMessage extends AdminDoc {
@@ -514,6 +537,91 @@ export async function writeAdminAuditLog(
     source: 'admin_console',
     ...omitUndefined(payload),
   });
+}
+
+export async function fetchDeletionRequests(): Promise<AdminDoc[]> {
+  return fetchCollectionDocs('deletionRequests', 150, ['updatedAt', 'createdAt']);
+}
+
+export async function createDeletionRequest(
+  admin: AdminRecord,
+  input: DeletionRequestInput,
+): Promise<string> {
+  const requestRef = doc(collection(db, 'deletionRequests'));
+  const userId = input.userId?.trim() ?? '';
+  const email = input.email.trim();
+  const profileName = input.profileName?.trim() ?? '';
+  const requestNote = input.requestNote?.trim() ?? '';
+  const adminNotes = input.adminNotes?.trim() ?? '';
+  const now = serverTimestamp();
+  const payload = omitUndefined({
+    userId,
+    email,
+    profileName,
+    status: input.status,
+    source: input.source,
+    requestNote,
+    adminNotes,
+    createdAt: now,
+    updatedAt: now,
+    completedAt: input.status === 'completed' ? now : undefined,
+    handledByAdminUid: input.status === 'completed' || input.status === 'rejected' ? admin.uid : undefined,
+    handledByAdminEmail: input.status === 'completed' || input.status === 'rejected' ? admin.email ?? '' : undefined,
+  });
+
+  await writeAdminAuditLog(admin, {
+    action: 'CREATE_DELETION_REQUEST',
+    targetUid: userId || undefined,
+    deletionRequestId: requestRef.id,
+    reason: requestNote || 'Admin-created deletion request',
+    afterSnapshot: omitUndefined({
+      ...payload,
+      createdAt: 'serverTimestamp',
+      updatedAt: 'serverTimestamp',
+      completedAt: input.status === 'completed' ? 'serverTimestamp' : undefined,
+    }),
+  });
+  await setDoc(requestRef, payload);
+
+  return requestRef.id;
+}
+
+export async function updateDeletionRequest(
+  admin: AdminRecord,
+  request: AdminDoc,
+  updates: DeletionRequestUpdate,
+  adminNote: string,
+): Promise<void> {
+  const beforeSnapshot = request.data;
+  const nextStatus = updates.status ?? (String(beforeSnapshot.status || 'requested') as DeletionRequestStatus);
+  const previousStatus = String(beforeSnapshot.status || '');
+  const trimmedNote = adminNote.trim();
+  const updatePayload = omitUndefined({
+    ...updates,
+    adminNotes: updates.adminNotes?.trim(),
+    updatedAt: serverTimestamp(),
+    completedAt: nextStatus === 'completed' ? serverTimestamp() : undefined,
+    handledByAdminUid: nextStatus === 'completed' || nextStatus === 'rejected' ? admin.uid : undefined,
+    handledByAdminEmail: nextStatus === 'completed' || nextStatus === 'rejected' ? admin.email ?? '' : undefined,
+  });
+  const action = previousStatus !== nextStatus ? 'CHANGE_DELETION_REQUEST_STATUS' : 'UPDATE_DELETION_REQUEST';
+
+  await writeAdminAuditLog(admin, {
+    action,
+    targetUid: typeof beforeSnapshot.userId === 'string' && beforeSnapshot.userId ? beforeSnapshot.userId : undefined,
+    deletionRequestId: request.id,
+    beforeSnapshot,
+    changedFields: Object.keys(updatePayload),
+    reason: trimmedNote || 'Admin updated deletion request',
+    adminNote: trimmedNote,
+    afterSnapshot: omitUndefined({
+      ...beforeSnapshot,
+      ...updatePayload,
+      updatedAt: 'serverTimestamp',
+      completedAt: nextStatus === 'completed' ? 'serverTimestamp' : beforeSnapshot.completedAt,
+    }),
+  });
+  await updateDoc(doc(db, 'deletionRequests', request.id), updatePayload);
 }
 
 export async function setProfileModerationStatus(
