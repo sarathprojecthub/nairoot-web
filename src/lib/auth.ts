@@ -13,7 +13,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
-  createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
+  createUserWithEmailAndPassword, deleteUser, signInWithEmailAndPassword, signOut,
 } from 'firebase/auth';
 import { auth } from './firebase';
 import { createUserDoc } from './user';
@@ -26,11 +26,20 @@ import { createUserDoc } from './user';
  */
 export async function signUpWithEmail(email: string, password: string, phone = ''): Promise<string> {
   const cred = await createUserWithEmailAndPassword(auth, email, password);
-  await createUserDoc(
-    cred.user.uid,
-    phone,
-    phone ? { phoneVerified: false, phoneCountryCode: '+91' } : undefined,
-  );
+  try {
+    await createUserDoc(
+      cred.user.uid,
+      phone,
+      phone ? { phoneVerified: false, phoneCountryCode: '+91' } : undefined,
+    );
+  } catch (error) {
+    try {
+      await deleteUser(cred.user);
+    } catch {
+      // Best effort only: the original signup error is the user-facing failure.
+    }
+    throw error;
+  }
   return cred.user.uid;
 }
 

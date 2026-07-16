@@ -6,16 +6,21 @@
 // Owner-only per Security Rules; membership fields must be ABSENT at creation.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, runTransaction, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { omitUndefined } from './onboarding/firestore';
 import type { LookingForPreference } from './onboarding/options';
+import {
+  claimPhoneNumberInTransaction,
+  normalizeIndianPhone,
+} from './phoneIndex';
 
 const USERS = 'users';
 
 export interface DbUserLite {
   uid: string;
   phone: string;
+  phoneKey?: string;
   phoneVerified?: boolean;
   phoneCountryCode?: string;
   isOnboarded: boolean;
@@ -42,17 +47,30 @@ export async function createUserDoc(
   extra?: { phoneVerified?: boolean; phoneCountryCode?: string },
 ): Promise<void> {
   const ref = doc(db, USERS, uid);
-  const snap = await getDoc(ref);
-  if (snap.exists()) return;
-  await setDoc(ref, omitUndefined({
-    uid,
-    phone,
-    phoneVerified: extra?.phoneVerified,
-    phoneCountryCode: extra?.phoneCountryCode,
-    isOnboarded: false,
-    createdAt: Date.now(),
-    lastActive: Date.now(),
-  }));
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists()) return;
+
+    const now = Date.now();
+    const payload: Record<string, unknown> = {
+      uid,
+      phone: '',
+      isOnboarded: false,
+      createdAt: now,
+      lastActive: now,
+    };
+
+    if (phone) {
+      const normalized = normalizeIndianPhone(phone);
+      await claimPhoneNumberInTransaction(tx, uid, normalized, 'web_signup');
+      payload.phone = normalized.phone;
+      payload.phoneKey = normalized.phoneKey;
+      payload.phoneVerified = extra?.phoneVerified ?? false;
+      payload.phoneCountryCode = extra?.phoneCountryCode ?? normalized.countryCode;
+    }
+
+    tx.set(ref, omitUndefined(payload));
+  });
 }
 
 // Subset of the private profile fields written during onboarding completion.

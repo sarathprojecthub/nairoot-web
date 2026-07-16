@@ -28,7 +28,7 @@ interface StepMeta {
   valid: (d: OnboardingData) => boolean;
 }
 
-// Web-native grouping (identity/phone are verified at login, not here):
+// Web-native grouping (email auth happens at login; phone is collected but not verified yet):
 // Profile basics + 4 content steps + review.
 const STEPS: StepMeta[] = [
   {

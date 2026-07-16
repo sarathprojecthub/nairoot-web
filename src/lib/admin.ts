@@ -119,6 +119,8 @@ export interface AdminMember {
   displayName: string;
   email: string;
   phone: string;
+  phoneKey: string;
+  phoneIndexStatus: string;
   photoUrl: string;
   initials: string;
   isTestProfile: boolean;
@@ -357,6 +359,17 @@ export async function resolveAdminMember(uid: string): Promise<AdminMember> {
     shortId(uid);
   const email = getString(user, ['email']) || getString(profile, ['email']);
   const phone = getString(user, ['phone', 'phoneNumber']) || getString(profile, ['phone', 'phoneNumber']);
+  const phoneKey = getString(user, ['phoneKey']) || phoneKeyFromPhone(phone);
+  const phoneIndexDoc = phoneKey ? await fetchDocument('phoneIndex', phoneKey).catch(() => null) : null;
+  const phoneIndexStatus = !phone
+    ? 'No phone found'
+    : !phoneKey
+      ? 'Invalid or unsupported phone format'
+      : !phoneIndexDoc
+        ? 'Missing phoneIndex document'
+        : phoneIndexDoc.data.userId === uid
+          ? 'Indexed to this user'
+          : 'Duplicate warning: indexed to another user';
   const photoUrl =
     getString(profile, ['photoUrl', 'profilePhoto', 'photo']) ||
     (Array.isArray(profile.photos) && typeof profile.photos[0] === 'string' ? profile.photos[0] : '');
@@ -369,6 +382,8 @@ export async function resolveAdminMember(uid: string): Promise<AdminMember> {
     displayName,
     email,
     phone,
+    phoneKey,
+    phoneIndexStatus,
     photoUrl,
     initials: initialsFor(displayName),
     isTestProfile: user.isTestProfile === true || profile.isTestProfile === true,
@@ -854,6 +869,14 @@ export function getString(data: Record<string, unknown>, keys: string[]): string
     const value = data[key];
     if (typeof value === 'string' && value.trim()) return value;
   }
+  return '';
+}
+
+function phoneKeyFromPhone(phone: string): string {
+  const compact = phone.trim().replace(/[\s\-().]/g, '');
+  const digits = compact.startsWith('+') ? compact.slice(1) : compact;
+  if (/^[6-9]\d{9}$/.test(digits)) return `91${digits}`;
+  if (/^91[6-9]\d{9}$/.test(digits)) return digits;
   return '';
 }
 

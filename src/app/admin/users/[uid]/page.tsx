@@ -252,6 +252,8 @@ function IdentityCard({
               <p><span className="text-muted">Matrimony ID:</span> {formatValue(member.profileDoc?.data.matrimonyId ?? member.profileDoc?.data.memberId ?? member.userDoc?.data.matrimonyId ?? member.userDoc?.data.memberId ?? 'Not assigned')}</p>
               <p><span className="text-muted">Email:</span> {member.email || 'No email found'}</p>
               <p><span className="text-muted">Phone:</span> {member.phone || 'No phone found'}</p>
+              <p><span className="text-muted">Phone index:</span> {member.phoneIndexStatus}</p>
+              <p><span className="text-muted">Phone key:</span> {member.phoneKey ? shortId(member.phoneKey, 4, 4) : 'Not indexed'}</p>
               <p><span className="text-muted">Location:</span> {formatValue(member.profileDoc?.data.city ?? member.userDoc?.data.city)}</p>
               <p><span className="text-muted">Age/gender:</span> {formatValue(member.profileDoc?.data.age)} / {formatValue(member.profileDoc?.data.gender)}</p>
               <p><span className="text-muted">Moderation:</span> {member.moderationStatus}</p>
@@ -259,6 +261,11 @@ function IdentityCard({
               <p><span className="text-muted">Created:</span> {formatDate(member.profileDoc?.data.createdAt ?? member.userDoc?.data.createdAt)}</p>
               <p><span className="text-muted">Updated:</span> {formatDate(member.profileDoc?.data.updatedAt ?? member.userDoc?.data.updatedAt)}</p>
             </div>
+            {member.phoneIndexStatus.includes('Duplicate warning') && (
+              <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                Duplicate phone warning: this member's phone index belongs to another user. Review before approving profile changes.
+              </div>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap gap-2 lg:w-56 lg:flex-col">

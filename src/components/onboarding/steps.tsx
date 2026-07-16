@@ -38,7 +38,7 @@ function Group({ title, children }: { title?: string; children: React.ReactNode 
   );
 }
 
-// ─── Step 1 — Profile basics (identity/phone already verified at login) ───────
+// ─── Step 1 — Profile basics (email-auth account exists; phone is not verified yet) ───────
 export function ProfileBasicsStep({ data, update }: StepProps) {
   return (
     <div>

@@ -5,6 +5,13 @@ import { useRouter } from 'next/navigation';
 import { signUpWithEmail, signInWithEmail } from '@/lib/auth';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { BrandLogo } from '@/components/ui/BrandLogo';
+import {
+  DUPLICATE_PHONE_ERROR_CODE,
+  DUPLICATE_PHONE_MESSAGE,
+  INVALID_PHONE_ERROR_CODE,
+  INVALID_PHONE_MESSAGE,
+  normalizeIndianPhone,
+} from '@/lib/phoneIndex';
 
 type Mode = 'signin' | 'signup';
 
@@ -52,7 +59,7 @@ export default function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      if (mode === 'signup') await signUpWithEmail(email.trim(), password, normalizePhone(phone));
+      if (mode === 'signup') await signUpWithEmail(email.trim(), password, normalizeIndianPhone(phone).phone);
       else await signInWithEmail(email.trim(), password);
       // AuthProvider updates → the effect above redirects. Keep the spinner up.
     } catch (e) {
@@ -593,17 +600,12 @@ function LampMotif({ className }: IconProps) {
 // Accept spaces / +91 / hyphens etc. Valid = Indian mobile: 10 digits starting
 // 6–9, optionally prefixed with 91 or +91.
 function isValidIndianMobile(raw: string): boolean {
-  const cleaned = raw.replace(/[\s\-().]/g, '');
-  return /^(\+?91)?[6-9]\d{9}$/.test(cleaned);
-}
-
-// Normalise to E.164 +91XXXXXXXXXX for storage. (Validation restricts to Indian
-// numbers, so the country code is always +91 for now.)
-function normalizePhone(raw: string): string {
-  const cleaned = raw.replace(/[\s\-().]/g, '');
-  if (/^[6-9]\d{9}$/.test(cleaned)) return `+91${cleaned}`;
-  if (/^91[6-9]\d{9}$/.test(cleaned)) return `+${cleaned}`;
-  return cleaned; // already +91… (validity checked separately)
+  try {
+    normalizeIndianPhone(raw);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // True when the value looks like a phone number rather than an email.
@@ -614,6 +616,10 @@ function looksLikePhone(s: string): boolean {
 function messageFor(e: unknown, mode: Mode): string {
   const code = (e as { code?: string })?.code ?? '';
   switch (code) {
+    case DUPLICATE_PHONE_ERROR_CODE:
+      return DUPLICATE_PHONE_MESSAGE;
+    case INVALID_PHONE_ERROR_CODE:
+      return INVALID_PHONE_MESSAGE;
     case 'auth/email-already-in-use':
       return 'An account with this email already exists. Try signing in instead.';
     case 'auth/invalid-email':
