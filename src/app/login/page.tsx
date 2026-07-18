@@ -30,9 +30,9 @@ export default function LoginPage() {
 
   // Already signed in (or just signed in) → route by onboarding state.
   useEffect(() => {
-    if (loading || !uid) return;
+    if (busy || loading || !uid) return;
     router.replace(isOnboarded ? '/discover' : '/onboarding');
-  }, [loading, uid, isOnboarded, router]);
+  }, [busy, loading, uid, isOnboarded, router]);
 
   // Read query params: ?mode=signup&intent=marriage-insight (set by /marriage-insight CTA).
   useEffect(() => {

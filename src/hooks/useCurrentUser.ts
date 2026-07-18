@@ -10,13 +10,14 @@ export interface CurrentUser {
   isOnboarded: boolean;
   phone: string | null;
   loading: boolean;
+  authMutationPending: boolean;
 }
 
 // Reactive current user: the signed-in Phone-Auth uid (from AuthProvider) joined
 // with a live read of its users/{uid} doc to know whether onboarding is complete.
 // Drives route guards and the header.
 export function useCurrentUser(): CurrentUser {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, authMutationPending } = useAuth();
   const uid = user?.uid ?? null;
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [phone, setPhone] = useState<string | null>(null);
@@ -42,6 +43,7 @@ export function useCurrentUser(): CurrentUser {
     uid,
     isOnboarded,
     phone,
-    loading: authLoading || (!!uid && !docLoaded),
+    loading: authMutationPending || authLoading || (!!uid && !docLoaded),
+    authMutationPending,
   };
 }

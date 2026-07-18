@@ -17,6 +17,8 @@ import {
 } from 'firebase/auth';
 import { auth } from './firebase';
 import { createUserDoc } from './user';
+import { setAuthMutationPending } from './authMutation';
+import { normalizeIndianPhone, releasePhoneNumber } from './phoneIndex';
 
 /**
  * Create a new account, then ensure the private users/{uid} doc exists.
@@ -25,22 +27,34 @@ import { createUserDoc } from './user';
  * exposed on Discover/profile pages. Optional for backward compatibility.
  */
 export async function signUpWithEmail(email: string, password: string, phone = ''): Promise<string> {
-  const cred = await createUserWithEmailAndPassword(auth, email, password);
+  setAuthMutationPending(true);
+  let cred: Awaited<ReturnType<typeof createUserWithEmailAndPassword>> | null = null;
+  const normalizedPhone = phone ? normalizeIndianPhone(phone) : null;
   try {
+    cred = await createUserWithEmailAndPassword(auth, email, password);
     await createUserDoc(
       cred.user.uid,
-      phone,
+      normalizedPhone?.phone ?? '',
       phone ? { phoneVerified: false, phoneCountryCode: '+91' } : undefined,
     );
+    return cred.user.uid;
   } catch (error) {
-    try {
-      await deleteUser(cred.user);
-    } catch {
-      // Best effort only: the original signup error is the user-facing failure.
+    if (cred?.user) {
+      await releasePhoneNumber(cred.user.uid, normalizedPhone?.phoneKey).catch(() => {});
+      try {
+        await deleteUser(cred.user);
+      } catch {
+        try {
+          await signOut(auth);
+        } catch {
+          // Best effort cleanup only; preserve the original signup error.
+        }
+      }
     }
     throw error;
+  } finally {
+    setAuthMutationPending(false);
   }
-  return cred.user.uid;
 }
 
 /** Sign in an existing account. createUserDoc is idempotent (no-op if present). */
