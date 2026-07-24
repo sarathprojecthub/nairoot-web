@@ -126,7 +126,7 @@ export const FAMILY_DESC_STARTERS = [
 
 // ── Step 7 — About / Bio ──────────────────────────────────────────────────────
 export const BIO_MIN_CHARS = 30;
-export const BIO_MAX_CHARS = 300;
+export const BIO_MAX_CHARS = 500;
 export const PROMPT_MAX_CHARS = 160;
 
 export const BIO_STARTERS = [
@@ -146,3 +146,117 @@ export const PROMPT_QUESTIONS = [
 
 // ── Step 8 — Photos ───────────────────────────────────────────────────────────
 export const MAX_PHOTOS = 3;
+
+export interface ProfileOption<T extends string = string> {
+  value: T;
+  label: string;
+  search?: string;
+  manual?: boolean;
+}
+
+export const MANUAL_OPTION_VALUE = '__other__';
+const manualOption: ProfileOption = {
+  value: MANUAL_OPTION_VALUE,
+  label: 'Other — enter manually',
+  manual: true,
+};
+
+export const MOTHER_TONGUE_OPTIONS: ProfileOption[] = [
+  'Malayalam', 'Assamese', 'Bengali', 'Bhojpuri', 'Bodo', 'Dogri', 'English',
+  'Garhwali', 'Gujarati', 'Haryanvi', 'Hindi', 'Kannada', 'Kashmiri', 'Kodava',
+  'Konkani', 'Kumaoni', 'Maithili', 'Manipuri / Meitei', 'Marathi', 'Nepali',
+  'Odia', 'Punjabi', 'Rajasthani', 'Santali', 'Sanskrit', 'Sindhi', 'Tamil',
+  'Telugu', 'Tulu', 'Urdu',
+].map((label) => ({ value: label, label })).concat(manualOption);
+
+export const SUBCASTE_OPTIONS: ProfileOption[] = [
+  'Kiriyathil Nair', 'Illathu Nair', 'Swaroopathil Nair', 'Veluthedathu Nair',
+  'Menon', 'Pillai', 'Kurup', 'Nambiar', 'Panicker', 'Kaimal', 'Kartha',
+  'Marar', 'Unnithan', 'Thampi', 'Nedungadi', 'Prefer not to say',
+].map((label) => ({ value: label, label })).concat(manualOption);
+
+export const NAKSHATRA_OPTIONS: ProfileOption[] = [
+  ['Aswathi', 'Ashwini'], ['Bharani'], ['Karthika', 'Krittika'], ['Rohini'],
+  ['Makayiram', 'Mrigashira'], ['Thiruvathira', 'Ardra'], ['Punartham', 'Punarvasu'],
+  ['Pooyam', 'Pushya'], ['Ayilyam', 'Ashlesha'], ['Makam', 'Magha'],
+  ['Pooram', 'Purva Phalguni'], ['Uthram', 'Uttara Phalguni'], ['Atham', 'Hasta'],
+  ['Chithira', 'Chitra'], ['Chothi', 'Swati'], ['Vishakham'], ['Anizham', 'Anuradha'],
+  ['Thrikketta', 'Jyeshtha'], ['Moolam', 'Mula'], ['Pooradam', 'Purva Ashadha'],
+  ['Uthradam', 'Uttara Ashadha'], ['Thiruvonam', 'Shravana'], ['Avittam', 'Dhanishta'],
+  ['Chathayam', 'Shatabhisha'], ['Pooruruttathi', 'Purva Bhadrapada'],
+  ['Uthrattathi', 'Uttara Bhadrapada'], ['Revathi', 'Revati'], ["Don't know"],
+  ['Prefer not to say'],
+].map(([value, secondary]) => ({
+  value,
+  label: secondary ? `${value} — ${secondary}` : value,
+  search: `${value} ${secondary ?? ''}`,
+}));
+
+export const HEIGHT_OPTIONS: ProfileOption[] = Array.from({ length: 101 }, (_, index) => {
+  const cm = 120 + index;
+  const totalInches = Math.round(cm / 2.54);
+  return {
+    value: `${cm} cm`,
+    label: `${cm} cm · ${Math.floor(totalInches / 12)} ft ${totalInches % 12} in`,
+  };
+});
+
+export const STATE_OPTIONS: ProfileOption[] = [
+  'Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam',
+  'Bihar', 'Chandigarh', 'Chhattisgarh', 'Dadra and Nagar Haveli and Daman and Diu',
+  'Delhi', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jammu and Kashmir',
+  'Jharkhand', 'Karnataka', 'Kerala', 'Ladakh', 'Lakshadweep', 'Madhya Pradesh',
+  'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha',
+  'Puducherry', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana',
+  'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+].map((label) => ({ value: label, label }));
+
+export const CITY_OPTIONS_BY_STATE: Record<string, ProfileOption[]> = {
+  Kerala: [
+    'Alappuzha', 'Ernakulam', 'Idukki', 'Kannur', 'Kasaragod', 'Kochi', 'Kollam',
+    'Kottayam', 'Kozhikode', 'Malappuram', 'Palakkad', 'Pathanamthitta',
+    'Thiruvananthapuram', 'Thrissur', 'Wayanad',
+  ].map((label) => ({ value: label, label })),
+  Karnataka: ['Bengaluru', 'Mangaluru', 'Mysuru'].map((label) => ({ value: label, label })),
+  'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai'].map((label) => ({ value: label, label })),
+  Maharashtra: ['Mumbai', 'Pune'].map((label) => ({ value: label, label })),
+  Delhi: [{ value: 'Delhi', label: 'Delhi' }],
+  Telangana: [{ value: 'Hyderabad', label: 'Hyderabad' }],
+};
+
+export const EDUCATION_PROFILE_OPTIONS: ProfileOption[] = [
+  'Higher Secondary / Plus Two', 'ITI', 'Vocational Diploma', 'Polytechnic Diploma',
+  'B.A.', 'B.Sc.', 'B.Com.', 'BBA', 'BCA', 'B.Tech.', 'B.E.', 'B.Arch.', 'B.Pharm.',
+  'B.Ed.', 'BSW', 'BFA', 'LLB', 'MBBS', 'BDS', 'BAMS', 'BHMS', 'B.V.Sc.',
+  'B.Sc. Nursing', "Other Bachelor's", 'M.A.', 'M.Sc.', 'M.Com.', 'MBA', 'MCA',
+  'M.Tech.', 'M.E.', 'M.Arch.', 'M.Pharm.', 'M.Ed.', 'MSW', 'LLM', 'MPH', 'MD',
+  'MS', 'MDS', "Other Master's", 'Ph.D.', 'CA', 'CMA', 'CS', 'CFA', 'FRM', 'CPA',
+  'Other Professional Qualification',
+].map((label) => ({ value: label, label })).concat(manualOption);
+
+export const OCCUPATION_PROFILE_OPTIONS: ProfileOption[] = [
+  'Software Engineer', 'Data Analyst', 'Data Scientist', 'Product Manager', 'Designer',
+  'Doctor', 'Dentist', 'Nurse', 'Pharmacist', 'Healthcare Professional',
+  'Chartered Accountant', 'Accountant', 'Banker', 'Investment Professional', 'Lawyer',
+  'Architect', 'Civil Engineer', 'Mechanical Engineer', 'Electrical Engineer', 'Teacher',
+  'Professor', 'Researcher', 'Civil Servant', 'Government Employee', 'Defence Professional',
+  'Police', 'Entrepreneur', 'Business Owner', 'Consultant', 'Freelancer',
+  'Sales Professional', 'Marketing Professional', 'HR Professional', 'Media Professional',
+  'Writer', 'Artist', 'Hospitality Professional', 'Aviation Professional', 'Merchant Navy',
+  'Farmer', 'Homemaker', 'Student', 'Retired',
+].map((label) => ({ value: label, label })).concat(manualOption);
+
+export const PARENT_OCCUPATION_OPTIONS: ProfileOption[] = [
+  'Homemaker', 'Business Owner', 'Self-Employed', 'Private Sector', 'Government Service',
+  'Public Sector / PSU', 'Civil Services', 'Defence', 'Professional',
+  'Teacher / Professor', 'Doctor / Healthcare', 'Farmer', 'Retired', 'Passed Away',
+  'Prefer not to say',
+].map((label) => ({ value: label, label })).concat(manualOption);
+
+// Web has historically stored the displayed rupee labels. Keep those values
+// stable while expanding the bands to semantic parity with Android.
+export const INCOME_PROFILE_OPTIONS: ProfileOption[] = [
+  'Below ₹1 Lakh', '₹1–3 Lakhs', '₹3–5 Lakhs', '₹5–7.5 Lakhs',
+  '₹7.5–10 Lakhs', '₹10–15 Lakhs', '₹15–25 Lakhs', '₹25–50 Lakhs',
+  '₹50 Lakhs–₹1 Crore', 'Above ₹1 Crore', 'Prefer not to say',
+].map((label) => ({ value: label, label }));

@@ -26,7 +26,41 @@ export async function saveOnboardingDraft(
   data: OnboardingData,
   completedStep: number,
 ): Promise<void> {
-  const draft: Record<string, unknown> = { uid, completedStep, updatedAt: Date.now() };
+  const draft: Record<string, unknown> = {
+    uid,
+    completedStep,
+    updatedAt: Date.now(),
+    creatingFor: data.creatingFor,
+    name: data.name,
+    dob: data.dob,
+    age: data.age,
+    height: data.height,
+    maritalStatus: data.maritalStatus,
+    motherTongue: data.motherTongue,
+    subcaste: data.subcaste,
+    star: data.star,
+    horoscopePreference: data.horoscopePreference,
+    state: data.state,
+    city: data.city,
+    education: data.education,
+    employmentType: data.employmentType,
+    profession: data.profession,
+    income: data.income,
+    familyType: data.familyType,
+    familyDescription: data.familyDescription,
+    fatherOccupation: data.fatherOccupation,
+    motherOccupation: data.motherOccupation,
+    brothers: data.brothers,
+    sisters: data.sisters,
+    bio: data.bio,
+    promptQuestion: data.promptQuestion,
+    promptAnswer: data.promptAnswer,
+    photos: data.photos,
+    gender: data.gender,
+    religion: data.religion,
+    lookingForGender: data.lookingFor.gender,
+    lookingForAgeRange: data.lookingFor.ageRange,
+  };
 
   // Only persist fields that hold a value — matches Android's merge semantics so
   // a later step never overwrites an earlier field with an empty value.
