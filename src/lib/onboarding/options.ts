@@ -7,6 +7,9 @@
 //   Android sources: src/types/user.ts and app/(onboarding)/*.tsx
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { INDIA_DISTRICTS_BY_STATE } from './indiaDistricts';
+import { DISTRICT_ALIASES } from './districtAliases';
+
 export type Gender = 'male' | 'female' | 'other';
 export type CreatingFor = 'bride' | 'groom' | 'daughter' | 'son' | 'sister' | 'brother';
 export type MaritalStatus = 'never-married' | 'divorced' | 'widowed' | 'awaiting-divorce';
@@ -211,18 +214,15 @@ export const STATE_OPTIONS: ProfileOption[] = [
   'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
 ].map((label) => ({ value: label, label }));
 
-export const CITY_OPTIONS_BY_STATE: Record<string, ProfileOption[]> = {
-  Kerala: [
-    'Alappuzha', 'Ernakulam', 'Idukki', 'Kannur', 'Kasaragod', 'Kochi', 'Kollam',
-    'Kottayam', 'Kozhikode', 'Malappuram', 'Palakkad', 'Pathanamthitta',
-    'Thiruvananthapuram', 'Thrissur', 'Wayanad',
-  ].map((label) => ({ value: label, label })),
-  Karnataka: ['Bengaluru', 'Mangaluru', 'Mysuru'].map((label) => ({ value: label, label })),
-  'Tamil Nadu': ['Chennai', 'Coimbatore', 'Madurai'].map((label) => ({ value: label, label })),
-  Maharashtra: ['Mumbai', 'Pune'].map((label) => ({ value: label, label })),
-  Delhi: [{ value: 'Delhi', label: 'Delhi' }],
-  Telangana: [{ value: 'Hyderabad', label: 'Hyderabad' }],
-};
+export const CITY_OPTIONS_BY_STATE: Record<string, ProfileOption[]> = Object.fromEntries(
+  Object.entries(INDIA_DISTRICTS_BY_STATE).map(([state, districts]) => [
+    state,
+    districts.map((label) => {
+      const aliases = DISTRICT_ALIASES[state]?.[label];
+      return { value: label, label, search: aliases?.join(' ') };
+    }),
+  ]),
+);
 
 export const EDUCATION_PROFILE_OPTIONS: ProfileOption[] = [
   'Higher Secondary / Plus Two', 'ITI', 'Vocational Diploma', 'Polytechnic Diploma',
