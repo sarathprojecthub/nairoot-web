@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { signUpWithEmail, signInWithEmail } from '@/lib/auth';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -25,6 +25,8 @@ export default function LoginPage() {
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const [showPw, setShowPw] = useState(false); // UI-only: toggles password visibility
   const [showTimingHint, setShowTimingHint] = useState(false);
 
@@ -38,6 +40,8 @@ export default function LoginPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
+    // This effect synchronizes the initial UI with the external browser URL.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (params.get('mode') === 'signup') setMode('signup');
     if (params.get('intent') === 'marriage-insight') setShowTimingHint(true);
   }, []);
@@ -53,15 +57,24 @@ export default function LoginPage() {
   // Sign-in: someone typing a phone number into the email field — guide them,
   // do NOT attempt a phone→email lookup (see note above messageFor).
   const phoneInEmailField = mode === 'signin' && !emailValid && looksLikePhone(email);
+  const showEmailError = (emailTouched || submitAttempted) && !emailValid && !phoneInEmailField;
 
-  async function submit() {
+  async function submit(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    setSubmitAttempted(true);
     if (!canSubmit) return;
     setBusy(true);
     setError(null);
     try {
-      if (mode === 'signup') await signUpWithEmail(email.trim(), password, normalizeIndianPhone(phone).phone);
-      else await signInWithEmail(email.trim(), password);
-      // AuthProvider updates → the effect above redirects. Keep the spinner up.
+      if (mode === 'signup') {
+        await signUpWithEmail(email.trim(), password, normalizeIndianPhone(phone).phone);
+        router.replace('/onboarding');
+        setBusy(false);
+        return;
+      }
+      await signInWithEmail(email.trim(), password);
+      // Setup is complete; the loaded user snapshot can now route by onboarding state.
+      setBusy(false);
     } catch (e) {
       setError(messageFor(e, mode));
       setBusy(false);
@@ -73,6 +86,8 @@ export default function LoginPage() {
     setConfirm('');
     setPhone('');
     setError(null);
+    setEmailTouched(false);
+    setSubmitAttempted(false);
     if (next === 'signin') setShowTimingHint(false);
   }
 
@@ -200,7 +215,8 @@ export default function LoginPage() {
                   </p>
                 </div>
 
-                {/* Mode toggle */}
+                <form onSubmit={submit} noValidate>
+                  {/* Mode toggle */}
                 <div className="mt-6 grid grid-cols-2 gap-1 rounded-full bg-ivory-deep p-1 text-sm font-medium">
                   <button
                     type="button"
@@ -240,14 +256,21 @@ export default function LoginPage() {
                       autoFocus
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && submit()}
+                      onBlur={() => setEmailTouched(true)}
+                      aria-invalid={showEmailError}
+                      aria-describedby={showEmailError ? 'login-email-error' : phoneInEmailField ? 'login-phone-hint' : undefined}
                       placeholder="you@example.com"
                       className={fieldInput}
                     />
                   </div>
                   {phoneInEmailField && (
-                    <p className="mt-1.5 text-xs text-maroon">
+                    <p id="login-phone-hint" className="mt-1.5 text-xs text-maroon">
                       Phone login is coming soon. Please sign in with your email for now.
+                    </p>
+                  )}
+                  {showEmailError && (
+                    <p id="login-email-error" className="mt-1.5 text-xs text-red-600">
+                      Enter a valid email address.
                     </p>
                   )}
                 </div>
@@ -265,7 +288,6 @@ export default function LoginPage() {
                         autoComplete="tel"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && submit()}
                         placeholder="10-digit mobile number"
                         className={fieldInput}
                       />
@@ -289,7 +311,6 @@ export default function LoginPage() {
                       autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && submit()}
                       placeholder={mode === 'signup' ? 'At least 6 characters' : 'Enter your password'}
                       className={fieldInput}
                     />
@@ -324,7 +345,6 @@ export default function LoginPage() {
                         autoComplete="new-password"
                         value={confirm}
                         onChange={(e) => setConfirm(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && submit()}
                         placeholder="Re-enter your password"
                         className={fieldInput}
                       />
@@ -337,8 +357,8 @@ export default function LoginPage() {
 
                 {/* CTA */}
                 <button
-                  onClick={submit}
-                  disabled={!canSubmit}
+                  type="submit"
+                  disabled={busy}
                   className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-maroon px-6 py-3.5 text-sm font-semibold text-cream shadow-soft transition hover:bg-maroon-deep disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {busy && <span className="h-4 w-4 animate-spin rounded-full border-2 border-cream/40 border-t-cream" />}
@@ -371,6 +391,7 @@ export default function LoginPage() {
                     <p className="text-muted">We never show your email on your profile.</p>
                   </div>
                 </div>
+                </form>
               </div>
             </div>
           </section>

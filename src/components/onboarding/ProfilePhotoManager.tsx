@@ -17,12 +17,14 @@ export function ProfilePhotoManager({
   photos,
   onChange,
   onPendingChange,
+  onFailedChange,
   error,
 }: {
   uid: string;
   photos: string[];
   onChange: (urls: string[]) => void;
   onPendingChange: (pending: boolean) => void;
+  onFailedChange: (failed: boolean) => void;
   error?: string;
 }) {
   const [items, setItems] = useState<ProfilePhotoItem[]>(() =>
@@ -43,7 +45,8 @@ export function ProfilePhotoManager({
     itemsRef.current = next;
     setItems(next);
     onChange(next.flatMap((item) => item.uploadedUrl ? [item.uploadedUrl] : []));
-    onPendingChange(next.some((item) => item.status === 'uploading' || item.status === 'failed'));
+    onPendingChange(next.some((item) => item.status === 'uploading'));
+    onFailedChange(next.some((item) => item.status === 'failed'));
   }
 
   async function add(file: File) {
@@ -116,13 +119,13 @@ export function ProfilePhotoManager({
           </div>
         ))}
         {items.length < MAX_PHOTOS && (
-          <button type="button" onClick={() => inputRef.current?.click()} className="flex aspect-[4/5] min-h-28 flex-col items-center justify-center rounded-2xl border border-dashed border-gold/60 bg-cream text-maroon hover:bg-gold/5">
+          <button type="button" data-photo-add onClick={() => inputRef.current?.click()} className="flex aspect-[4/5] min-h-28 flex-col items-center justify-center rounded-2xl border border-dashed border-gold/60 bg-cream text-maroon hover:bg-gold/5">
             <span className="text-2xl" aria-hidden>＋</span><span className="mt-1 text-xs font-semibold">Add photo</span>
           </button>
         )}
       </div>
       <p className="mt-3 text-xs text-muted">Photo one is primary. Add up to three clear, recent photos.</p>
-      {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
+      {error && <p id="photos-error" className="mt-2 text-xs text-red-700">{error}</p>}
     </div>
   );
 }

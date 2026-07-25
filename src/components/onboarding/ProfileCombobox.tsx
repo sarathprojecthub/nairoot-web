@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { MANUAL_OPTION_VALUE, type ProfileOption } from '@/lib/onboarding/options';
 import { compactProfileText, isManualPlaceholder } from '@/lib/onboarding/profileValidation';
 
 export function ProfileCombobox({
+  id: controlId,
   label,
   value,
   options,
@@ -16,6 +17,7 @@ export function ProfileCombobox({
   error,
   placeholder = 'Select',
 }: {
+  id?: string;
   label: string;
   value: string;
   options: readonly ProfileOption[];
@@ -27,14 +29,17 @@ export function ProfileCombobox({
   error?: string;
   placeholder?: string;
 }) {
-  const id = useId();
+  const generatedId = useId();
+  const id = controlId ?? generatedId;
   const errorId = `${id}-error`;
+  const listboxId = `${id}-listbox`;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [manual, setManual] = useState(false);
   const [manualError, setManualError] = useState('');
+  const [activeIndex, setActiveIndex] = useState(-1);
   const selectedLabel = options.find((option) => option.value === value)?.label ?? value;
 
   const filtered = useMemo(() => {
@@ -44,6 +49,13 @@ export function ProfileCombobox({
       `${option.label} ${option.search ?? ''}`.toLowerCase().includes(normalized),
     );
   }, [options, query]);
+
+  useEffect(() => {
+    if (!open || manual || activeIndex < 0) return;
+    const option = filtered[activeIndex];
+    if (!option) return;
+    document.getElementById(`${id}-option-${options.indexOf(option)}`)?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex, filtered, id, manual, open, options]);
 
   useEffect(() => {
     if (!open) return;
@@ -72,14 +84,20 @@ export function ProfileCombobox({
     const customValue = !!value && !options.some((option) => option.value === value);
     setManual(customValue);
     setQuery(customValue ? value : '');
+    setActiveIndex(customValue ? -1 : Math.max(0, options.findIndex((option) => option.value === value)));
     setManualError('');
     setOpen(true);
+  }
+
+  function optionId(option: ProfileOption) {
+    return `${id}-option-${options.indexOf(option)}`;
   }
 
   function select(option: ProfileOption) {
     if (option.manual || option.value === MANUAL_OPTION_VALUE) {
       setManual(true);
       setQuery('');
+      setActiveIndex(-1);
       requestAnimationFrame(() => searchRef.current?.focus());
       return;
     }
@@ -95,6 +113,43 @@ export function ProfileCombobox({
     }
     onChange(custom);
     close();
+  }
+
+  function updateQuery(nextQuery: string) {
+    setQuery(nextQuery);
+    setManualError('');
+    if (manual) return;
+    const normalized = nextQuery.trim().toLowerCase();
+    const nextFiltered = normalized
+      ? options.filter((option) =>
+          `${option.label} ${option.search ?? ''}`.toLowerCase().includes(normalized),
+        )
+      : options;
+    setActiveIndex(nextFiltered.length ? 0 : -1);
+  }
+
+  function handleSearchKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if (manual) saveManual();
+      else if (activeIndex >= 0 && filtered[activeIndex]) select(filtered[activeIndex]);
+      else if (allowManual) saveManual();
+      return;
+    }
+    if (manual || !filtered.length) return;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setActiveIndex((current) => current < 0 ? 0 : Math.min(current + 1, filtered.length - 1));
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setActiveIndex((current) => current < 0 ? filtered.length - 1 : Math.max(current - 1, 0));
+    } else if (event.key === 'Home') {
+      event.preventDefault();
+      setActiveIndex(0);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      setActiveIndex(filtered.length - 1);
+    }
   }
 
   return (
@@ -131,9 +186,17 @@ export function ProfileCombobox({
                 ref={searchRef}
                 value={query}
                 maxLength={80}
-                onChange={(event) => { setQuery(event.target.value); setManualError(''); }}
+                onChange={(event) => updateQuery(event.target.value)}
+                onKeyDown={handleSearchKeyDown}
                 placeholder={manual ? 'Type a specific value' : 'Search options'}
                 aria-label={manual ? `Enter ${label}` : `Search ${label}`}
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={!manual}
+                aria-controls={!manual ? listboxId : undefined}
+                aria-activedescendant={!manual && activeIndex >= 0 && filtered[activeIndex]
+                  ? optionId(filtered[activeIndex])
+                  : undefined}
                 className="w-full rounded-xl border border-line-strong bg-ivory px-4 py-3 text-sm outline-none focus:border-maroon focus:ring-2 focus:ring-maroon/20"
               />
               {manual ? (
@@ -142,15 +205,20 @@ export function ProfileCombobox({
                   <button type="button" onClick={saveManual} className="min-h-12 w-full rounded-full bg-maroon px-5 text-sm font-semibold text-cream focus:ring-2 focus:ring-maroon/30">Save custom value</button>
                 </div>
               ) : (
-                <div role="listbox" aria-label={`${label} options`} className="mt-3 max-h-[48dvh] overflow-y-auto">
-                  {filtered.map((option) => (
+                <div id={listboxId} role="listbox" aria-label={`${label} options`} className="mt-3 max-h-[48dvh] overflow-y-auto">
+                  {filtered.map((option, index) => (
                     <button
                       key={`${option.value}-${option.label}`}
+                      id={optionId(option)}
                       type="button"
                       role="option"
                       aria-selected={value === option.value}
+                      aria-label={option.manual || option.value === MANUAL_OPTION_VALUE
+                        ? `${option.label}, enter a custom ${label.toLowerCase()}`
+                        : option.label}
                       onClick={() => select(option)}
-                      className="flex min-h-12 w-full items-center justify-between border-b border-line px-2 py-3 text-left text-sm text-ink outline-none hover:bg-ivory focus:bg-ivory"
+                      onMouseEnter={() => setActiveIndex(index)}
+                      className={`flex min-h-12 w-full items-center justify-between border-b border-line px-2 py-3 text-left text-sm text-ink outline-none hover:bg-ivory focus:bg-ivory ${activeIndex === index ? 'bg-gold/15 ring-1 ring-inset ring-gold/45' : ''}`}
                     >
                       <span>{option.label}</span>{value === option.value && <span className="font-bold text-maroon">✓</span>}
                     </button>

@@ -122,6 +122,7 @@ export function OnePageProfileForm() {
   const [errors, setErrors] = useState<Errors>({});
   const [submitted, setSubmitted] = useState(false);
   const [photoPending, setPhotoPending] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
   const [open, setOpen] = useState<Record<ProfileSectionId, boolean>>({
     photos: true, about: true, background: false, location: false, work: false, family: false, bio: false,
   });
@@ -175,11 +176,13 @@ export function OnePageProfileForm() {
   }
 
   function sectionError(section: ProfileSectionId): string | undefined {
+    if (section === 'photos' && errors.photos) return errors.photos;
     return currentValidation.find((error) => error.section === section && errors[error.field])?.message;
   }
 
   function sectionComplete(section: ProfileSectionId): boolean {
     if (section === 'background') return true;
+    if (section === 'photos' && photoFailed) return false;
     return !currentValidation.some((error) => error.section === section);
   }
 
@@ -191,13 +194,32 @@ export function OnePageProfileForm() {
     setSubmitted(true);
     setSubmitError('');
     const problems = validateProfile(data);
+    if (photoFailed) {
+      const failedPhotoMessage = 'Remove the failed photo and try uploading it again.';
+      const existingPhotoProblem = problems.find((problem) => problem.field === 'photos');
+      if (existingPhotoProblem) existingPhotoProblem.message = failedPhotoMessage;
+      else {
+        problems.unshift({
+          field: 'photos',
+          section: 'photos',
+          message: failedPhotoMessage,
+        });
+      }
+    }
     setErrors(Object.fromEntries(problems.map((error) => [error.field, error.message])));
     if (problems.length) {
       const first = problems[0];
       setOpen((previous) => ({ ...previous, [first.section]: true }));
       requestAnimationFrame(() => {
         document.getElementById(`section-${first.section}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        window.setTimeout(() => document.getElementById(first.field)?.focus(), 350);
+        window.setTimeout(() => {
+          const fallback = first.field === 'photos'
+            ? document.querySelector<HTMLElement>('#section-photos [data-photo-add], #section-photos button[aria-label^="Remove photo"]')
+            : first.field === 'creatingFor'
+              ? document.querySelector<HTMLElement>('#creatingFor button')
+              : null;
+          (fallback ?? document.getElementById(first.field))?.focus();
+        }, 350);
       });
       return;
     }
@@ -257,27 +279,29 @@ export function OnePageProfileForm() {
             </header>
             <div className="space-y-4">
               <SectionCard id="photos" title="Profile Photos" icon="◇" helper="Add one clear primary photo." summary={`${data.photos.length} photo${data.photos.length === 1 ? '' : 's'} added`} open={open.photos} complete={sectionComplete('photos')} error={sectionError('photos')} onToggle={() => setOpen((state) => ({ ...state, photos: !state.photos }))}>
-                <div id="photos"><ProfilePhotoManager uid={uid} photos={data.photos} onChange={(photos) => update({ photos })} onPendingChange={setPhotoPending} error={errors.photos} /></div>
+                <div id="photos" tabIndex={-1} aria-invalid={!!errors.photos} aria-describedby={errors.photos ? 'photos-error' : undefined}>
+                  <ProfilePhotoManager uid={uid} photos={data.photos} onChange={(photos) => update({ photos })} onPendingChange={setPhotoPending} onFailedChange={setPhotoFailed} error={errors.photos} />
+                </div>
               </SectionCard>
 
               <SectionCard id="about" title="About You" icon="○" helper="Identity and life-stage details." summary={[data.name, data.height].filter(Boolean).join(' · ')} open={open.about} complete={sectionComplete('about')} error={sectionError('about')} onToggle={() => setOpen((state) => ({ ...state, about: !state.about }))}>
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <FieldLabel required>Profile is for</FieldLabel>
-                    <div id="creatingFor" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <div id="creatingFor" role="group" aria-describedby={errors.creatingFor ? 'creatingFor-error' : undefined} className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {CREATING_FOR_OPTIONS.map((option) => <button key={option.value} type="button" aria-pressed={data.creatingFor === option.value} onClick={() => update({ creatingFor: option.value, ...deriveFromCreatingFor(option.gender) })} className={`min-h-14 rounded-xl border px-3 py-2 text-left text-sm ${data.creatingFor === option.value ? 'border-maroon bg-maroon text-cream' : 'border-line-strong bg-ivory hover:border-gold'}`}><strong className="block">{option.label}</strong><span className="text-[11px] opacity-75">{option.sub}</span></button>)}
                     </div>
-                    {errors.creatingFor && <p className="mt-1 text-xs text-red-700">{errors.creatingFor}</p>}
+                    {errors.creatingFor && <p id="creatingFor-error" className="mt-1 text-xs text-red-700">{errors.creatingFor}</p>}
                   </div>
                   <TextField id="name" label="Full name" required value={data.name} onChange={(name) => update({ name })} error={errors.name} />
                   <div>
                     <FieldLabel htmlFor="dob" required>Date of birth</FieldLabel>
-                    <input id="dob" type="date" value={data.dob} onChange={(event) => { const dob = event.target.value; update({ dob, age: ageFromIso(dob) }); }} aria-invalid={!!errors.dob} className={`min-h-12 w-full rounded-xl border bg-cream px-4 py-3 text-sm outline-none focus:border-maroon focus:ring-2 focus:ring-maroon/20 ${errors.dob ? 'border-red-500' : 'border-line-strong'}`} />
-                    {data.age > 0 && <p className="mt-1 text-xs text-muted">Age: {data.age} years</p>}{errors.dob && <p className="mt-1 text-xs text-red-700">{errors.dob}</p>}
+                    <input id="dob" type="date" value={data.dob} onChange={(event) => { const dob = event.target.value; update({ dob, age: ageFromIso(dob) }); }} aria-invalid={!!errors.dob} aria-describedby={errors.dob ? 'dob-error' : undefined} className={`min-h-12 w-full rounded-xl border bg-cream px-4 py-3 text-sm outline-none focus:border-maroon focus:ring-2 focus:ring-maroon/20 ${errors.dob ? 'border-red-500' : 'border-line-strong'}`} />
+                    {data.age > 0 && <p className="mt-1 text-xs text-muted">Age: {data.age} years</p>}{errors.dob && <p id="dob-error" className="mt-1 text-xs text-red-700">{errors.dob}</p>}
                   </div>
-                  <ProfileCombobox label="Height" required value={data.height} options={HEIGHT_OPTIONS} onChange={(height) => update({ height })} error={errors.height} />
-                  <ProfileCombobox label="Marital status" required value={data.maritalStatus} options={maritalProfileOptions} onChange={(maritalStatus) => update({ maritalStatus: maritalStatus as MaritalStatus })} error={errors.maritalStatus} />
-                  <div className="sm:col-span-2"><ProfileCombobox label="Mother tongue" required value={data.motherTongue} options={MOTHER_TONGUE_OPTIONS} allowManual onChange={(motherTongue) => update({ motherTongue })} error={errors.motherTongue} /></div>
+                  <ProfileCombobox id="height" label="Height" required value={data.height} options={HEIGHT_OPTIONS} onChange={(height) => update({ height })} error={errors.height} />
+                  <ProfileCombobox id="maritalStatus" label="Marital status" required value={data.maritalStatus} options={maritalProfileOptions} onChange={(maritalStatus) => update({ maritalStatus: maritalStatus as MaritalStatus })} error={errors.maritalStatus} />
+                  <div className="sm:col-span-2"><ProfileCombobox id="motherTongue" label="Mother tongue" required value={data.motherTongue} options={MOTHER_TONGUE_OPTIONS} allowManual onChange={(motherTongue) => update({ motherTongue })} error={errors.motherTongue} /></div>
                 </div>
               </SectionCard>
 
@@ -294,23 +318,23 @@ export function OnePageProfileForm() {
               <SectionCard id="location" title="Location" icon="⌖" helper="Where you live and build your daily life." summary={[data.state, data.city].filter(Boolean).join(' · ')} open={open.location} complete={sectionComplete('location')} error={sectionError('location')} onToggle={() => setOpen((state) => ({ ...state, location: !state.location }))}>
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="rounded-xl border border-line bg-ivory p-4"><span className="block text-xs text-muted">Country</span><strong className="mt-1 block text-sm">India</strong></div>
-                  <ProfileCombobox label="State / Union Territory" required value={data.state} options={STATE_OPTIONS} onChange={(state) => update({ state, city: data.city && !(CITY_OPTIONS_BY_STATE[state] ?? []).some((option) => option.value === data.city) ? '' : data.city })} error={errors.state} />
-                  <div className="sm:col-span-2"><ProfileCombobox label="City / District" required value={data.city} options={CITY_OPTIONS_BY_STATE[data.state] ?? []} allowManual onChange={(city) => update({ city: compactProfileText(city) })} error={errors.city} /></div>
+                  <ProfileCombobox id="state" label="State / Union Territory" required value={data.state} options={STATE_OPTIONS} onChange={(state) => update({ state, city: data.city && !(CITY_OPTIONS_BY_STATE[state] ?? []).some((option) => option.value === data.city) ? '' : data.city })} error={errors.state} />
+                  <div className="sm:col-span-2"><ProfileCombobox id="city" label="City / District" required value={data.city} options={CITY_OPTIONS_BY_STATE[data.state] ?? []} allowManual onChange={(city) => update({ city: compactProfileText(city) })} error={errors.city} /></div>
                 </div>
               </SectionCard>
 
               <SectionCard id="work" title="Work & Education" icon="▣" helper="Education and professional direction." summary={[data.education, data.profession].filter(Boolean).join(' · ')} open={open.work} complete={sectionComplete('work')} error={sectionError('work')} onToggle={() => setOpen((state) => ({ ...state, work: !state.work }))}>
                 <div className="grid gap-5 sm:grid-cols-2">
-                  <div className="sm:col-span-2"><ProfileCombobox label="Education" required value={data.education} options={EDUCATION_PROFILE_OPTIONS} allowManual onChange={(education) => update({ education })} error={errors.education} /></div>
-                  <ProfileCombobox label="Employment type" required value={data.employmentType} options={employmentProfileOptions} onChange={(employmentType) => update({ employmentType: employmentType as EmploymentType })} error={errors.employmentType} />
-                  <ProfileCombobox label="Occupation" required value={data.profession} options={OCCUPATION_PROFILE_OPTIONS} allowManual onChange={(profession) => update({ profession })} error={errors.profession} />
+                  <div className="sm:col-span-2"><ProfileCombobox id="education" label="Education" required value={data.education} options={EDUCATION_PROFILE_OPTIONS} allowManual onChange={(education) => update({ education })} error={errors.education} /></div>
+                  <ProfileCombobox id="employmentType" label="Employment type" required value={data.employmentType} options={employmentProfileOptions} onChange={(employmentType) => update({ employmentType: employmentType as EmploymentType })} error={errors.employmentType} />
+                  <ProfileCombobox id="profession" label="Occupation" required value={data.profession} options={OCCUPATION_PROFILE_OPTIONS} allowManual onChange={(profession) => update({ profession })} error={errors.profession} />
                   <div className="sm:col-span-2"><ProfileCombobox label="Annual income" optional value={data.income} options={INCOME_PROFILE_OPTIONS} allowClear onChange={(income) => update({ income })} /></div>
                 </div>
               </SectionCard>
 
               <SectionCard id="family" title="Family" icon="♢" helper="A little context makes introductions warmer." summary={data.familyType ? familyProfileOptions.find((option) => option.value === data.familyType)?.label : ''} open={open.family} complete={sectionComplete('family')} error={sectionError('family')} onToggle={() => setOpen((state) => ({ ...state, family: !state.family }))}>
                 <div className="grid gap-5 sm:grid-cols-2">
-                  <div className="sm:col-span-2"><ProfileCombobox label="Family type" required value={data.familyType} options={familyProfileOptions} onChange={(familyType) => update({ familyType: familyType as FamilyType })} error={errors.familyType} /></div>
+                  <div className="sm:col-span-2"><ProfileCombobox id="familyType" label="Family type" required value={data.familyType} options={familyProfileOptions} onChange={(familyType) => update({ familyType: familyType as FamilyType })} error={errors.familyType} /></div>
                   <div className="sm:col-span-2"><FieldLabel htmlFor="familyDescription" optional>Family description</FieldLabel><textarea id="familyDescription" value={data.familyDescription} maxLength={MAX_FAMILY_DESC} rows={4} onChange={(event) => update({ familyDescription: event.target.value })} className="w-full resize-none rounded-xl border border-line-strong bg-cream px-4 py-3 text-sm outline-none focus:border-maroon focus:ring-2 focus:ring-maroon/20" /><p className="mt-1 text-right text-xs text-muted">{data.familyDescription.length}/{MAX_FAMILY_DESC}</p></div>
                   <ProfileCombobox label="Father's occupation" optional value={data.fatherOccupation} options={PARENT_OCCUPATION_OPTIONS} allowManual allowClear onChange={(fatherOccupation) => update({ fatherOccupation })} />
                   <ProfileCombobox label="Mother's occupation" optional value={data.motherOccupation} options={PARENT_OCCUPATION_OPTIONS} allowManual allowClear onChange={(motherOccupation) => update({ motherOccupation })} />
@@ -322,8 +346,8 @@ export function OnePageProfileForm() {
               <SectionCard id="bio" title="About Yourself" icon="♡" helper="A few honest words go a long way." summary={data.bio ? `${data.bio.length}/${BIO_MAX_CHARS} characters` : ''} open={open.bio} complete={sectionComplete('bio')} error={sectionError('bio')} onToggle={() => setOpen((state) => ({ ...state, bio: !state.bio }))}>
                 {!data.bio && <div className="mb-4 flex flex-wrap gap-2">{BIO_STARTERS.map((starter) => <button key={starter.label} type="button" onClick={() => update({ bio: starter.text })} className="min-h-10 rounded-full border border-gold/40 bg-gold/5 px-3 text-xs font-semibold text-maroon">{starter.label}</button>)}</div>}
                 <FieldLabel htmlFor="bio" required>Share a little about yourself</FieldLabel>
-                <textarea id="bio" value={data.bio} maxLength={BIO_MAX_CHARS} rows={6} onChange={(event) => update({ bio: event.target.value })} aria-invalid={!!errors.bio} className={`w-full resize-none rounded-xl border bg-cream px-4 py-3 text-sm leading-6 outline-none focus:border-maroon focus:ring-2 focus:ring-maroon/20 ${errors.bio ? 'border-red-500' : 'border-line-strong'}`} />
-                <div className="mt-1 flex justify-between text-xs"><span className="text-red-700">{errors.bio}</span><span className="text-muted">{data.bio.length}/{BIO_MAX_CHARS}</span></div>
+                <textarea id="bio" value={data.bio} maxLength={BIO_MAX_CHARS} rows={6} onChange={(event) => update({ bio: event.target.value })} aria-invalid={!!errors.bio} aria-describedby={errors.bio ? 'bio-error' : undefined} className={`w-full resize-none rounded-xl border bg-cream px-4 py-3 text-sm leading-6 outline-none focus:border-maroon focus:ring-2 focus:ring-maroon/20 ${errors.bio ? 'border-red-500' : 'border-line-strong'}`} />
+                <div className="mt-1 flex justify-between text-xs"><span id={errors.bio ? 'bio-error' : undefined} className="text-red-700">{errors.bio}</span><span className="text-muted">{data.bio.length}/{BIO_MAX_CHARS}</span></div>
               </SectionCard>
             </div>
 
@@ -333,6 +357,9 @@ export function OnePageProfileForm() {
               <button type="button" onClick={() => void submit()} disabled={saveState === 'submitting' || photoPending} className="flex min-h-14 w-full items-center justify-center rounded-full bg-maroon px-6 text-sm font-bold text-cream shadow-soft transition hover:bg-maroon-deep focus:ring-2 focus:ring-maroon/30 disabled:opacity-60">
                 {saveState === 'submitting' ? 'Creating your profile…' : photoPending ? 'Finish photo upload' : 'Save & Create Profile'}
               </button>
+              {!submitted && currentValidation.length > 0 && (
+                <p className="mt-2 text-center text-xs text-muted">Complete the required details to create your profile.</p>
+              )}
             </div>
           </div>
         </div>
