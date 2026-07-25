@@ -6,8 +6,10 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   FieldLabel, Hint, TextField, TextArea, ChipGroup, PrimaryButton,
 } from '@/components/onboarding/fields';
+import { ProfileCombobox } from '@/components/onboarding/ProfileCombobox';
 import {
-  EDUCATION_OPTIONS, MARITAL_OPTIONS, INCOME_OPTIONS, STATES, MAX_PHOTOS,
+  EDUCATION_OPTIONS, MARITAL_OPTIONS, INCOME_OPTIONS, STATE_OPTIONS,
+  CITY_OPTIONS_BY_STATE, MAX_PHOTOS,
 } from '@/lib/onboarding/options';
 import {
   fetchEditableProfile, saveProfileEdits, setProfileVisibility, type LoadedProfile,
@@ -36,6 +38,17 @@ export default function ProfileEditPage() {
 
   const set = useCallback(<K extends keyof LoadedProfile>(k: K, v: LoadedProfile[K]) => {
     setProfile((prev) => (prev ? { ...prev, [k]: v } : prev));
+  }, []);
+
+  // Changing state clears the city only when the current value isn't a valid
+  // district for the newly selected state (same rule as onboarding) — this
+  // preserves a custom/manual locality whenever it still applies.
+  const setState = useCallback((state: string) => {
+    setProfile((prev) => {
+      if (!prev) return prev;
+      const cityValid = (CITY_OPTIONS_BY_STATE[state] ?? []).some((option) => option.value === prev.city);
+      return { ...prev, state, city: prev.city && !cityValid ? '' : prev.city };
+    });
   }, []);
 
   const flashMsg = useCallback((m: string) => { setFlash(m); setTimeout(() => setFlash(null), 3000); }, []);
@@ -158,13 +171,22 @@ export default function ProfileEditPage() {
           <FieldLabel>Height</FieldLabel>
           <TextField value={profile.height} onChange={(v) => set('height', v)} placeholder={`e.g. 5'6"`} />
         </div>
-        <div>
-          <FieldLabel>City / District</FieldLabel>
-          <TextField value={profile.city} onChange={(v) => set('city', v)} placeholder="e.g. Kochi" />
-        </div>
+        <ProfileCombobox
+          id="state"
+          label="State / Union Territory"
+          value={profile.state}
+          options={STATE_OPTIONS}
+          onChange={setState}
+        />
         <div className="sm:col-span-2">
-          <FieldLabel>State</FieldLabel>
-          <ChipGroup options={STATES} value={profile.state} onChange={(v) => set('state', v)} />
+          <ProfileCombobox
+            id="city"
+            label="City / District"
+            value={profile.city}
+            options={CITY_OPTIONS_BY_STATE[profile.state] ?? []}
+            allowManual
+            onChange={(city) => set('city', city)}
+          />
         </div>
         <div>
           <FieldLabel>Occupation</FieldLabel>
