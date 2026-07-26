@@ -75,7 +75,7 @@ function hydrateDraft(draft: OnboardingDraft): OnboardingData {
 }
 
 function FieldLabel({ children, required, optional, htmlFor }: { children: ReactNode; required?: boolean; optional?: boolean; htmlFor?: string }) {
-  return <label htmlFor={htmlFor} className="mb-2 block text-xs font-semibold text-charcoal">{children}{required && <span className="text-maroon"> *</span>}{optional && <span className="font-normal text-muted"> (optional)</span>}</label>;
+  return <label htmlFor={htmlFor} className="mb-2.5 block text-[0.8rem] font-semibold tracking-[0.01em] text-ink/88">{children}{required && <span className="align-baseline text-maroon/90"> *</span>}{optional && <span className="font-normal text-muted"> (optional)</span>}</label>;
 }
 
 function TextField({ id, label, value, onChange, required, optional, error, type = 'text' }: {
@@ -98,14 +98,14 @@ function SectionCard({ id, title, helper, summary, icon, open, complete, error, 
   open: boolean; complete: boolean; error?: string; onToggle: () => void; children: ReactNode;
 }) {
   return (
-    <section id={`section-${id}`} className={`scroll-mt-5 overflow-hidden rounded-2xl border bg-cream shadow-soft ${error ? 'border-red-300' : 'border-line'}`}>
-      <button type="button" onClick={onToggle} aria-expanded={open} aria-controls={`section-${id}-content`} className="flex min-h-20 w-full items-center gap-4 px-5 py-4 text-left sm:px-6">
-        <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-maroon text-lg text-gold-soft">{icon}</span>
+    <section id={`section-${id}`} className={`scroll-mt-5 overflow-hidden rounded-[1.35rem] border bg-cream shadow-soft ${error ? 'border-red-300' : 'border-line'}`}>
+      <button type="button" onClick={onToggle} aria-expanded={open} aria-controls={`section-${id}-content`} className="flex min-h-24 w-full items-center gap-4 px-5 py-5 text-left sm:px-6">
+        <span aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-maroon text-base text-gold-soft shadow-sm">{icon}</span>
         <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.08em] text-charcoal">{title}{complete && <span className="text-maroon" aria-label="Complete">✓</span>}</span>
-          <span className={`mt-1 block truncate text-xs ${error ? 'text-red-700' : 'text-muted'}`}>{error || summary || helper}</span>
+          <span className="flex items-center gap-2 text-[0.8rem] font-semibold uppercase tracking-[0.14em] text-ink/88">{title}{complete && <span className="text-maroon" aria-label="Complete">✓</span>}</span>
+          <span className={`mt-1.5 block truncate text-[0.82rem] leading-5 ${error ? 'text-red-700' : 'text-muted'}`}>{error || summary || helper}</span>
         </span>
-        <span aria-hidden className="text-gold">{open ? '⌃' : '⌄'}</span>
+        <span aria-hidden className="text-sm text-gold">{open ? '˄' : '˅'}</span>
       </button>
       {open && <div id={`section-${id}-content`} className="border-t border-line px-5 py-6 sm:px-6">{children}</div>}
     </section>
@@ -249,36 +249,36 @@ export function OnePageProfileForm() {
   if (booting || !uid) return <div className="flex min-h-screen items-center justify-center bg-ivory"><span className="h-7 w-7 animate-spin rounded-full border-2 border-line-strong border-t-maroon" /></div>;
 
   return (
-    <main className="min-h-screen bg-ivory text-ink">
-      <div className="mx-auto grid min-h-screen max-w-[1440px] lg:grid-cols-[minmax(290px,36%)_1fr]">
-        <aside className="border-b border-maroon/20 bg-maroon px-5 py-6 text-cream lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:px-10 lg:py-10 xl:px-14">
+    <main className="min-h-screen overflow-x-clip bg-ivory text-ink">
+      <div className="grid min-h-screen w-full lg:grid-cols-[minmax(19rem,33vw)_minmax(0,1fr)]">
+        <aside className="border-b border-maroon/20 bg-maroon px-5 py-6 text-cream lg:sticky lg:top-0 lg:h-screen lg:px-10 lg:py-10 xl:px-14">
           <div className="flex items-center justify-between lg:block">
             <div className="flex items-center gap-3"><BrandLogo className="h-9 w-9" /><span className="font-serif text-base font-semibold tracking-wide">The Nair Root</span></div>
             <button type="button" onClick={signOut} className="min-h-11 rounded-full border border-cream/25 px-4 text-xs font-semibold hover:bg-cream/10">Sign out</button>
           </div>
           <div className="mt-7 lg:mt-20">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-soft">A thoughtful beginning</p>
-            <h1 className="mt-3 font-serif text-3xl font-semibold leading-tight lg:text-5xl">Create your profile</h1>
-            <p className="mt-4 max-w-md text-sm leading-6 text-cream/75">A clear, genuine profile helps families understand the person behind the details.</p>
+            <p className="text-[0.72rem] font-medium uppercase tracking-[0.22em] text-gold-soft/90">A thoughtful beginning</p>
+            <h1 className="mt-3 max-w-lg font-serif text-3xl font-semibold leading-[1.05] tracking-[-0.01em] lg:text-[3.15rem]">Create your profile</h1>
+            <p className="mt-4 max-w-md text-sm leading-6 text-cream/78">A clear, genuine profile helps families understand the person behind the details.</p>
           </div>
           <div className="mt-6 rounded-2xl border border-cream/15 bg-cream/10 p-4 lg:mt-10 lg:p-5">
-            <div className="flex items-center justify-between text-sm"><span>Profile completion</span><strong>{completion}%</strong></div>
+            <div className="flex items-center justify-between text-sm text-cream/88"><span>Profile completion</span><strong className="font-semibold text-cream">{completion}%</strong></div>
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-cream/15" role="progressbar" aria-valuenow={completion} aria-valuemin={0} aria-valuemax={100} aria-label={`${completion}% profile complete`}>
               <div className="h-full rounded-full bg-gold-soft transition-[width] motion-reduce:transition-none" style={{ width: `${completion}%` }} />
             </div>
-            <p aria-live="polite" className="mt-4 text-xs text-cream/65">{saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : 'Your progress saves automatically'}</p>
+            <p aria-live="polite" className="mt-4 text-xs tracking-[0.01em] text-cream/68">{saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : 'Your progress saves automatically'}</p>
           </div>
-          <p className="mt-5 flex items-center gap-2 text-xs text-cream/65"><span aria-hidden>◇</span>Your contact information stays private.</p>
+          <p className="mt-5 flex items-center gap-2 text-xs tracking-[0.01em] text-cream/68"><span aria-hidden>◊</span>Your contact information stays private.</p>
         </aside>
 
         <div className="min-w-0 px-4 py-7 pb-32 sm:px-8 lg:px-10 lg:py-12 xl:px-16">
           <div className="mx-auto max-w-3xl">
             <header className="mb-7 lg:hidden">
-              <p className="font-serif text-2xl font-semibold text-charcoal">Tell us about yourself</p>
-              <p className="mt-2 text-sm text-muted">Complete each section at your own pace.</p>
+              <p className="font-serif text-2xl font-semibold leading-tight tracking-[-0.01em] text-charcoal">Tell us about yourself</p>
+              <p className="mt-2 text-sm leading-6 text-muted">Complete each section at your own pace.</p>
             </header>
             <div className="space-y-4">
-              <SectionCard id="photos" title="Profile Photos" icon="◇" helper="Add one clear primary photo." summary={`${data.photos.length} photo${data.photos.length === 1 ? '' : 's'} added`} open={open.photos} complete={sectionComplete('photos')} error={sectionError('photos')} onToggle={() => setOpen((state) => ({ ...state, photos: !state.photos }))}>
+              <SectionCard id="photos" title="Profile Photos" icon="◊" helper="Add one clear primary photo." summary={`${data.photos.length} photo${data.photos.length === 1 ? '' : 's'} added`} open={open.photos} complete={sectionComplete('photos')} error={sectionError('photos')} onToggle={() => setOpen((state) => ({ ...state, photos: !state.photos }))}>
                 <div id="photos" tabIndex={-1} aria-invalid={!!errors.photos} aria-describedby={errors.photos ? 'photos-error' : undefined}>
                   <ProfilePhotoManager uid={uid} photos={data.photos} onChange={(photos) => update({ photos })} onPendingChange={setPhotoPending} onFailedChange={setPhotoFailed} error={errors.photos} />
                 </div>
@@ -288,8 +288,8 @@ export function OnePageProfileForm() {
                 <div className="grid gap-5 sm:grid-cols-2">
                   <div className="sm:col-span-2">
                     <FieldLabel required>Profile is for</FieldLabel>
-                    <div id="creatingFor" role="group" aria-describedby={errors.creatingFor ? 'creatingFor-error' : undefined} className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                      {CREATING_FOR_OPTIONS.map((option) => <button key={option.value} type="button" aria-pressed={data.creatingFor === option.value} onClick={() => update({ creatingFor: option.value, ...deriveFromCreatingFor(option.gender) })} className={`min-h-14 rounded-xl border px-3 py-2 text-left text-sm ${data.creatingFor === option.value ? 'border-maroon bg-maroon text-cream' : 'border-line-strong bg-ivory hover:border-gold'}`}><strong className="block">{option.label}</strong><span className="text-[11px] opacity-75">{option.sub}</span></button>)}
+                    <div id="creatingFor" role="group" aria-describedby={errors.creatingFor ? 'creatingFor-error' : undefined} className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                      {CREATING_FOR_OPTIONS.map((option) => <button key={option.value} type="button" aria-pressed={data.creatingFor === option.value} onClick={() => update({ creatingFor: option.value, ...deriveFromCreatingFor(option.gender) })} className={`min-h-16 rounded-xl border px-3.5 py-3 text-left text-sm transition ${data.creatingFor === option.value ? 'border-maroon bg-maroon text-cream shadow-soft' : 'border-line-strong bg-ivory hover:border-gold hover:bg-cream'}`}><strong className="block text-[0.92rem] font-semibold leading-5">{option.label}</strong><span className={`mt-1 block text-[11px] leading-4 ${data.creatingFor === option.value ? 'text-cream/80' : 'text-muted'}`}>{option.sub}</span></button>)}
                     </div>
                     {errors.creatingFor && <p id="creatingFor-error" className="mt-1 text-xs text-red-700">{errors.creatingFor}</p>}
                   </div>
@@ -344,7 +344,7 @@ export function OnePageProfileForm() {
               </SectionCard>
 
               <SectionCard id="bio" title="About Yourself" icon="♡" helper="A few honest words go a long way." summary={data.bio ? `${data.bio.length}/${BIO_MAX_CHARS} characters` : ''} open={open.bio} complete={sectionComplete('bio')} error={sectionError('bio')} onToggle={() => setOpen((state) => ({ ...state, bio: !state.bio }))}>
-                {!data.bio && <div className="mb-4 flex flex-wrap gap-2">{BIO_STARTERS.map((starter) => <button key={starter.label} type="button" onClick={() => update({ bio: starter.text })} className="min-h-10 rounded-full border border-gold/40 bg-gold/5 px-3 text-xs font-semibold text-maroon">{starter.label}</button>)}</div>}
+                {!data.bio && <div className="mb-4 flex flex-wrap gap-2">{BIO_STARTERS.map((starter) => <button key={starter.label} type="button" onClick={() => update({ bio: starter.text })} className="min-h-10 rounded-full border border-gold/40 bg-gold/5 px-3 text-xs font-semibold tracking-[0.01em] text-maroon transition hover:bg-gold/10">{starter.label}</button>)}</div>}
                 <FieldLabel htmlFor="bio" required>Share a little about yourself</FieldLabel>
                 <textarea id="bio" value={data.bio} maxLength={BIO_MAX_CHARS} rows={6} onChange={(event) => update({ bio: event.target.value })} aria-invalid={!!errors.bio} aria-describedby={errors.bio ? 'bio-error' : undefined} className={`w-full resize-none rounded-xl border bg-cream px-4 py-3 text-sm leading-6 outline-none focus:border-maroon focus:ring-2 focus:ring-maroon/20 ${errors.bio ? 'border-red-500' : 'border-line-strong'}`} />
                 <div className="mt-1 flex justify-between text-xs"><span id={errors.bio ? 'bio-error' : undefined} className="text-red-700">{errors.bio}</span><span className="text-muted">{data.bio.length}/{BIO_MAX_CHARS}</span></div>
@@ -354,7 +354,7 @@ export function OnePageProfileForm() {
             {submitError && <p role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{submitError}</p>}
             {submitted && currentValidation.length > 0 && <p className="mt-4 text-center text-xs text-muted">{currentValidation[0].message}</p>}
             <div className="sticky bottom-0 z-20 -mx-4 mt-8 border-t border-line bg-ivory/95 px-4 py-4 backdrop-blur sm:-mx-8 sm:px-8 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:px-0 lg:backdrop-blur-none">
-              <button type="button" onClick={() => void submit()} disabled={saveState === 'submitting' || photoPending} className="flex min-h-14 w-full items-center justify-center rounded-full bg-maroon px-6 text-sm font-bold text-cream shadow-soft transition hover:bg-maroon-deep focus:ring-2 focus:ring-maroon/30 disabled:opacity-60">
+              <button type="button" onClick={() => void submit()} disabled={saveState === 'submitting' || photoPending} className="flex min-h-14 w-full items-center justify-center rounded-full bg-maroon px-6 text-sm font-semibold tracking-[0.01em] text-cream shadow-soft transition hover:bg-maroon-deep focus:ring-2 focus:ring-maroon/30 disabled:opacity-60">
                 {saveState === 'submitting' ? 'Creating your profile…' : photoPending ? 'Finish photo upload' : 'Save & Create Profile'}
               </button>
               {!submitted && currentValidation.length > 0 && (

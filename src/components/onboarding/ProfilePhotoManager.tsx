@@ -122,13 +122,13 @@ export function ProfilePhotoManager({
     if (index === 0) {
       return (
         <div className="absolute left-2 top-2 flex flex-col gap-1">
-          <span className="rounded-full bg-maroon/90 px-2 py-1 text-[10px] font-semibold text-cream">Photo 1</span>
-          <span className="rounded-full bg-maroon/90 px-2 py-1 text-[10px] font-semibold text-cream">Primary · Required</span>
+          <span className="rounded-full bg-maroon/90 px-2.5 py-1 text-[10px] font-semibold tracking-[0.04em] text-cream">Photo 1</span>
+          <span className="rounded-full bg-maroon/90 px-2.5 py-1 text-[10px] font-semibold tracking-[0.02em] text-cream">Primary · Required</span>
         </div>
       );
     }
 
-    return <span className="absolute left-2 top-2 rounded-full bg-maroon/90 px-2 py-1 text-[10px] font-semibold text-cream">{`Photo ${index + 1}`}</span>;
+    return <span className="absolute left-2 top-2 rounded-full bg-cream/92 px-2.5 py-1 text-[10px] font-semibold tracking-[0.04em] text-maroon shadow-sm">{`Photo ${index + 1}`}</span>;
   }
 
   return (
@@ -150,9 +150,9 @@ export function ProfilePhotoManager({
           const item = items[index];
           if (!item) {
             return (
-              <button key={index} type="button" data-photo-add onClick={() => chooseSlot(index)} disabled={!configured || index > items.length} className="flex aspect-[4/5] min-h-28 flex-col items-center justify-center rounded-2xl border border-dashed border-gold/60 bg-cream text-maroon hover:bg-gold/5 disabled:cursor-not-allowed disabled:opacity-45">
+              <button key={index} type="button" data-photo-add onClick={() => chooseSlot(index)} disabled={!configured || index > items.length} className={`flex aspect-[4/5] min-h-28 flex-col items-center justify-center rounded-2xl border border-dashed bg-cream transition hover:bg-gold/5 disabled:cursor-not-allowed disabled:opacity-45 ${index === 0 ? 'border-gold/70 text-maroon' : 'border-line-strong text-ink/75 hover:border-gold/55'}`}>
                 <span className="text-2xl" aria-hidden>+</span>
-                <span className="mt-1 text-xs font-semibold">{index === 0 ? 'Add primary photo' : `Add photo ${index + 1}`}</span>
+                <span className={`mt-1 text-center text-xs font-semibold leading-5 tracking-[0.01em] ${index === 0 ? 'text-maroon' : 'text-ink/75'}`}>{index === 0 ? 'Add primary photo' : `Add photo ${index + 1}`}</span>
               </button>
             );
           }
@@ -174,7 +174,7 @@ export function ProfilePhotoManager({
           );
         })}
       </div>
-      <p className="mt-3 text-xs text-muted">Photo one is primary. Add up to four clear, recent photos.</p>
+      <p className="mt-3 text-xs leading-5 tracking-[0.01em] text-muted">Photo one is primary. Add up to four clear, recent photos.</p>
       {error && <p id="photos-error" className="mt-2 text-xs text-red-700">{error}</p>}
     </div>
   );
