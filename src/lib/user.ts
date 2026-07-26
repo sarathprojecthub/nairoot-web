@@ -1,10 +1,10 @@
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // users/{uid} — private user document.
 //
 // Mirrors Android src/services/userService.ts. Same fields, same write shape, so
 // a website-created user doc is indistinguishable from an Android-created one.
 // Owner-only per Security Rules; membership fields must be ABSENT at creation.
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 import { doc, getDoc, runTransaction, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
@@ -16,7 +16,18 @@ import {
 } from './phoneIndex';
 
 const USERS = 'users';
+const MAX_PROFILE_PHOTOS = 4;
 
+
+function normalizePhotosForWrite(photos: string[]): string[] {
+  const normalized = photos
+    .map((photo) => (typeof photo === 'string' ? photo.trim() : ''))
+    .filter(Boolean);
+  if (normalized.length > MAX_PROFILE_PHOTOS) {
+    throw new Error(`Profiles can include at most ${MAX_PROFILE_PHOTOS} photos.`);
+  }
+  return normalized;
+}
 export interface DbUserLite {
   uid: string;
   phone: string;
@@ -96,7 +107,11 @@ export interface UserProfileUpdate {
 
 /** Merge partial profile updates into users/{uid}. Adds lastActive, strips undefined. */
 export async function updateUserProfile(uid: string, data: UserProfileUpdate): Promise<void> {
-  const payload = omitUndefined({ ...data, lastActive: Date.now() });
+  const payload = omitUndefined({
+    ...data,
+    photos: data.photos === undefined ? undefined : normalizePhotosForWrite(data.photos),
+    lastActive: Date.now(),
+  });
   await setDoc(doc(db, USERS, uid), payload, { merge: true });
 }
 

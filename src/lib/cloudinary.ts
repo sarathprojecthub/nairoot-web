@@ -1,15 +1,15 @@
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Cloudinary unsigned upload (browser).
 //
 // Mirrors Android src/services/cloudinaryService.ts so website photos land in
 // the SAME Cloudinary account/folder and `photos[]` holds the same kind of
 // secure_url strings Android stores. Android uploads to:
-//   public_id: bandhan/users/{uid}/photos/{index}
+//   public_id: bandhan/users/{uid}/photos/<unique-id>
 //   endpoint:  https://api.cloudinary.com/v1_1/{cloudName}/image/upload
 //   fields:    file, upload_preset, public_id  (unsigned preset only)
 //
 // Config comes from NEXT_PUBLIC_CLOUDINARY_* env vars (see .env.local).
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 const MAX_WIDTH_PX = 1200;
 const JPEG_QUALITY = 0.82;
@@ -21,6 +21,12 @@ function getConfig(): { cloudName: string; uploadPreset: string } {
   };
 }
 
+function uniquePhotoPublicId(uid: string): string {
+  const random = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+  return `bandhan/users/${uid}/photos/${Date.now()}-${random}`;
+}
 export function isCloudinaryConfigured(): boolean {
   const { cloudName, uploadPreset } = getConfig();
   return !!cloudName && !!uploadPreset;
@@ -55,14 +61,15 @@ async function compressImage(file: File): Promise<Blob> {
 }
 
 /**
- * Compress → unsigned Cloudinary upload → secure_url.
- * Returns the CDN URL to store in DbProfile.photos[index].
+ * Compress ? unsigned Cloudinary upload ? secure_url.
+ * Returns a CDN URL to store in DbProfile.photos[].
  */
 export async function uploadUserPhoto(
   file: File,
   uid: string,
-  index: number,
+  _index: number,
 ): Promise<string> {
+  void _index;
   const { cloudName, uploadPreset } = getConfig();
   if (!cloudName || !uploadPreset) {
     throw new Error(
@@ -72,11 +79,11 @@ export async function uploadUserPhoto(
   }
 
   const compressed = await compressImage(file);
-  const publicId = `bandhan/users/${uid}/photos/${index}`;
+  const publicId = uniquePhotoPublicId(uid);
   const endpoint = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
 
   const form = new FormData();
-  form.append('file', compressed, `photo_${index}.jpg`);
+  form.append('file', compressed, `photo_${Date.now()}.jpg`);
   form.append('upload_preset', uploadPreset);
   form.append('public_id', publicId);
 

@@ -148,7 +148,7 @@ export const PROMPT_QUESTIONS = [
 ];
 
 // ── Step 8 — Photos ───────────────────────────────────────────────────────────
-export const MAX_PHOTOS = 3;
+export const MAX_PHOTOS = 4;
 
 export interface ProfileOption<T extends string = string> {
   value: T;

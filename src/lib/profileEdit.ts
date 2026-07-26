@@ -1,11 +1,11 @@
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 // Profile editing (web) — owner edits their own public profile + private user doc.
 //
 // Reuses the shared schema and the existing users-doc writer. Updates only the
 // display fields a member may change; it deliberately never writes the
 // trust/visibility-gated fields (profileQuality, verifiedFields, isPremium,
 // isConcierge, moderationStatus) so it stays within the unchanged Security Rules.
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
@@ -13,6 +13,7 @@ import { omitUndefined } from './onboarding/firestore';
 import { updateUserProfile } from './user';
 
 const PROFILES = 'profiles';
+const MAX_PROFILE_PHOTOS = 4;
 
 // Fields a member may edit on their public profile.
 export interface EditableProfile {
@@ -30,6 +31,13 @@ export interface EditableProfile {
   photos: string[];
 }
 
+
+export function normalizeProfilePhotosForWrite(photos: string[], { requirePhoto = false }: { requirePhoto?: boolean } = {}): string[] {
+  const normalized = photos.map((photo) => typeof photo === 'string' ? photo.trim() : '').filter(Boolean);
+  if (normalized.length > MAX_PROFILE_PHOTOS) throw new Error(`Profiles can include at most ${MAX_PROFILE_PHOTOS} photos.`);
+  if (requirePhoto && normalized.length < 1) throw new Error('Add at least one profile photo to continue.');
+  return normalized;
+}
 export interface LoadedProfile extends EditableProfile {
   age: number;
   gender: string;
@@ -66,6 +74,7 @@ export async function fetchEditableProfile(uid: string): Promise<LoadedProfile |
 // private user doc (parity with how onboarding writes both).
 export async function saveProfileEdits(uid: string, edits: EditableProfile): Promise<void> {
   const now = Date.now();
+  const photos = normalizeProfilePhotosForWrite(edits.photos);
   await updateDoc(doc(db, PROFILES, uid), omitUndefined({
     name: edits.name,
     height: edits.height,
@@ -78,7 +87,7 @@ export async function saveProfileEdits(uid: string, edits: EditableProfile): Pro
     maritalStatus: edits.maritalStatus || undefined,
     motherTongue: edits.motherTongue,
     income: edits.income,
-    photos: edits.photos,
+    photos,
     traits: [edits.profession, edits.city].filter(Boolean),
     updatedAt: now,
   }));
@@ -89,7 +98,7 @@ export async function saveProfileEdits(uid: string, edits: EditableProfile): Pro
     state: edits.state,
     profession: edits.profession,
     bio: edits.bio,
-    photos: edits.photos,
+    photos,
     maritalStatus: edits.maritalStatus || undefined,
     motherTongue: edits.motherTongue,
     income: edits.income,

@@ -20,6 +20,7 @@ import { calculateProfileQuality } from './quality';
 import { updateUserProfile, completeOnboarding } from '../user';
 import { deleteOnboardingDraft } from './draft';
 import type { OnboardingData } from './data';
+import { normalizeProfilePhotosForWrite } from '../profileEdit';
 
 const PROFILES = 'profiles';
 
@@ -53,10 +54,10 @@ async function upsertProfile(uid: string, data: Record<string, unknown>): Promis
 }
 
 export async function completeProfile(uid: string, data: OnboardingData): Promise<void> {
-  const photoURLs = data.photos;
+  const photoURLs = normalizeProfilePhotosForWrite(data.photos, { requirePhoto: true });
 
   const profileQuality = calculateProfileQuality({
-    photos: data.photos,
+    photos: photoURLs,
     bio: data.bio,
     profession: data.profession,
     education: data.education,

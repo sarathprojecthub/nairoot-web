@@ -28,6 +28,7 @@ export default function ProfileEditPage() {
   const [flash, setFlash] = useState<string | null>(null);
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const targetPhotoSlot = useRef(0);
 
   // Gate: must be a completed member to edit.
   useEffect(() => {
@@ -78,16 +79,18 @@ export default function ProfileEditPage() {
     }
   }
 
-  async function addPhoto(file: File) {
-    if (!uid || !profile || profile.photos.length >= MAX_PHOTOS) return;
-    const index = profile.photos.length;
-    setUploadingSlot(index);
+  async function addPhoto(file: File, slotIndex: number) {
+    if (!uid || !profile || slotIndex >= MAX_PHOTOS || uploadingSlot !== null) return;
+    const previousUrl = profile.photos[slotIndex];
+    setUploadingSlot(slotIndex);
     try {
-      const url = await uploadUserPhoto(file, uid, index);
-      const photos = [...profile.photos, url];
-      set('photos', photos);
+      const url = await uploadUserPhoto(file, uid, slotIndex);
+      const next = [...profile.photos];
+      next[slotIndex] = url;
+      const photos = next.filter(Boolean);
       await saveProfileEdits(uid, { ...profile, photos });
-      flashMsg('Photo added');
+      set('photos', photos);
+      flashMsg(previousUrl ? 'Photo replaced' : 'Photo added');
     } catch (e) {
       flashMsg(e instanceof Error ? e.message : 'Upload failed');
     } finally {
@@ -97,10 +100,18 @@ export default function ProfileEditPage() {
 
   async function removePhoto(i: number) {
     if (!uid || !profile) return;
+    if (profile.photos.length <= 1) {
+      flashMsg('Add a replacement before removing your only photo');
+      return;
+    }
     const photos = profile.photos.filter((_, idx) => idx !== i);
-    set('photos', photos);
-    await saveProfileEdits(uid, { ...profile, photos });
-    flashMsg('Photo removed');
+    try {
+      await saveProfileEdits(uid, { ...profile, photos });
+      set('photos', photos);
+      flashMsg('Photo removed');
+    } catch (e) {
+      flashMsg(e instanceof Error ? e.message : 'Could not remove photo');
+    }
   }
 
   if (loading || (!profile && !notFound)) {
@@ -138,26 +149,33 @@ export default function ProfileEditPage() {
       {/* Photos */}
       <section className="mb-8">
         <FieldLabel>Photos</FieldLabel>
-        <div className="grid grid-cols-3 gap-3 sm:max-w-md">
-          {profile.photos.map((url, i) => (
-            <div key={i} className="relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt={`Photo ${i + 1}`} className={`aspect-[4/5] w-full rounded-xl object-cover ${i === 0 ? 'ring-2 ring-gold' : ''}`} />
-              <button onClick={() => removePhoto(i)} className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-xs text-white" aria-label="Remove photo">✕</button>
-            </div>
-          ))}
-          {profile.photos.length < MAX_PHOTOS && (
-            <button
-              onClick={() => fileRef.current?.click()}
-              disabled={!isCloudinaryConfigured() || uploadingSlot !== null}
-              className="flex aspect-[4/5] items-center justify-center rounded-xl border border-dashed border-line-strong text-muted hover:border-gold/50 disabled:opacity-40"
-            >
-              {uploadingSlot !== null ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-line-strong border-t-maroon" /> : '＋'}
-            </button>
-          )}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:max-w-2xl">
+          {Array.from({ length: MAX_PHOTOS }, (_, i) => {
+            const url = profile.photos[i];
+            const canUseSlot = i <= profile.photos.length;
+            return url ? (
+              <div key={i} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt={i === 0 ? 'Primary profile photo' : `Photo ${i + 1}`} className={`aspect-[4/5] w-full rounded-xl object-cover ${i === 0 ? 'ring-2 ring-gold' : ''}`} />
+                <span className="absolute left-1.5 top-1.5 rounded-full bg-maroon/90 px-2 py-1 text-[10px] font-semibold text-cream">{i === 0 ? 'Primary' : `Photo ${i + 1}`}</span>
+                <button onClick={() => removePhoto(i)} disabled={profile.photos.length <= 1} className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-xs text-white disabled:opacity-35" aria-label={profile.photos.length <= 1 ? 'Add a replacement before removing your only photo' : `Remove photo ${i + 1}`}>x</button>
+                <button onClick={() => { targetPhotoSlot.current = i; fileRef.current?.click(); }} disabled={!isCloudinaryConfigured() || uploadingSlot !== null} className="absolute inset-x-2 bottom-2 rounded-full bg-black/55 py-1.5 text-[11px] font-semibold text-white disabled:opacity-40">Replace</button>
+              </div>
+            ) : (
+              <button
+                key={i}
+                onClick={() => { targetPhotoSlot.current = i; fileRef.current?.click(); }}
+                disabled={!isCloudinaryConfigured() || uploadingSlot !== null || !canUseSlot}
+                className="flex aspect-[4/5] flex-col items-center justify-center rounded-xl border border-dashed border-line-strong text-muted hover:border-gold/50 disabled:opacity-40"
+              >
+                {uploadingSlot === i ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-line-strong border-t-maroon" /> : <><span className="text-2xl">+</span><span className="mt-1 text-xs font-semibold">{i === 0 ? 'Add primary photo' : `Add photo ${i + 1}`}</span></>}
+              </button>
+            );
+          })}
         </div>
+        <p className="mt-3 text-xs text-muted">Photo one is primary. Add up to four clear, recent photos.</p>
         <input ref={fileRef} type="file" accept="image/*" className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) void addPhoto(f); e.target.value = ''; }} />
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) void addPhoto(f, targetPhotoSlot.current); e.target.value = ''; }} />
         {!isCloudinaryConfigured() && <Hint>Photo upload is not configured (Cloudinary env not set).</Hint>}
       </section>
 
