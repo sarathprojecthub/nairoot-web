@@ -53,6 +53,7 @@ export default function ProfileEditPage() {
   }, []);
 
   const flashMsg = useCallback((m: string) => { setFlash(m); setTimeout(() => setFlash(null), 3000); }, []);
+  const needsPrimaryPhoto = !!profile && profile.photos.length === 0;
 
   async function save() {
     if (!uid || !profile) return;
@@ -157,7 +158,11 @@ export default function ProfileEditPage() {
               <div key={i} className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt={i === 0 ? 'Primary profile photo' : `Photo ${i + 1}`} className={`aspect-[4/5] w-full rounded-xl object-cover ${i === 0 ? 'ring-2 ring-gold' : ''}`} />
-                <span className="absolute left-1.5 top-1.5 rounded-full bg-maroon/90 px-2 py-1 text-[10px] font-semibold text-cream">{i === 0 ? 'Primary' : `Photo ${i + 1}`}</span>
+                {i === 0 ? (
+                  <span className="absolute left-1.5 top-1.5 rounded-full bg-maroon/90 px-2 py-1 text-[10px] font-semibold text-cream">Primary</span>
+                ) : (
+                  <span className="absolute left-1.5 top-1.5 rounded-full bg-maroon/90 px-2 py-1 text-[10px] font-semibold text-cream">{`Photo ${i + 1}`}</span>
+                )}
                 <button onClick={() => removePhoto(i)} disabled={profile.photos.length <= 1} className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-xs text-white disabled:opacity-35" aria-label={profile.photos.length <= 1 ? 'Add a replacement before removing your only photo' : `Remove photo ${i + 1}`}>x</button>
                 <button onClick={() => { targetPhotoSlot.current = i; fileRef.current?.click(); }} disabled={!isCloudinaryConfigured() || uploadingSlot !== null} className="absolute inset-x-2 bottom-2 rounded-full bg-black/55 py-1.5 text-[11px] font-semibold text-white disabled:opacity-40">Replace</button>
               </div>
@@ -168,7 +173,7 @@ export default function ProfileEditPage() {
                 disabled={!isCloudinaryConfigured() || uploadingSlot !== null || !canUseSlot}
                 className="flex aspect-[4/5] flex-col items-center justify-center rounded-xl border border-dashed border-line-strong text-muted hover:border-gold/50 disabled:opacity-40"
               >
-                {uploadingSlot === i ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-line-strong border-t-maroon" /> : <><span className="text-2xl">+</span><span className="mt-1 text-xs font-semibold">{i === 0 ? 'Add primary photo' : `Add photo ${i + 1}`}</span></>}
+                {uploadingSlot === i ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-line-strong border-t-maroon" /> : <><span className="text-2xl">+</span><span className="mt-1 text-xs font-semibold">{i === 0 ? 'Add primary photo' : `Add photo ${i + 1}`}</span>{i === 0 && needsPrimaryPhoto ? <span className="mt-1 rounded-full bg-maroon/90 px-2 py-1 text-[10px] font-semibold text-cream">Primary · Required</span> : null}</>}
               </button>
             );
           })}

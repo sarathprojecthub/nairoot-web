@@ -118,6 +118,19 @@ export function ProfilePhotoManager({
     commit(next);
   }
 
+  function slotHeader(index: number) {
+    if (index === 0) {
+      return (
+        <div className="absolute left-2 top-2 flex flex-col gap-1">
+          <span className="rounded-full bg-maroon/90 px-2 py-1 text-[10px] font-semibold text-cream">Photo 1</span>
+          <span className="rounded-full bg-maroon/90 px-2 py-1 text-[10px] font-semibold text-cream">Primary · Required</span>
+        </div>
+      );
+    }
+
+    return <span className="absolute left-2 top-2 rounded-full bg-maroon/90 px-2 py-1 text-[10px] font-semibold text-cream">{`Photo ${index + 1}`}</span>;
+  }
+
   return (
     <div>
       {!configured && <p className="mb-4 rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-xs text-[#725426]">Photo upload is not configured in this local environment.</p>}
@@ -148,7 +161,7 @@ export function ProfilePhotoManager({
             <div key={item.id} className={`relative aspect-[4/5] overflow-hidden rounded-2xl border ${index === 0 ? 'border-gold ring-1 ring-gold' : 'border-line-strong'}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={item.localPreviewUrl} alt={index === 0 ? 'Primary profile photo' : `Profile photo ${index + 1}`} className="h-full w-full object-cover" />
-              <span className="absolute left-2 top-2 rounded-full bg-maroon/90 px-2 py-1 text-[10px] font-semibold text-cream">{index === 0 ? 'Primary' : `Photo ${index + 1}`}</span>
+              {slotHeader(index)}
               <button type="button" onClick={() => remove(item.id)} disabled={!canRemove} aria-label={canRemove ? `Remove photo ${index + 1}` : 'Add a replacement before removing your only photo'} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-charcoal/70 text-cream disabled:opacity-35">x</button>
               <button type="button" onClick={() => chooseSlot(index)} disabled={!configured || item.status === 'uploading'} className="absolute inset-x-2 bottom-12 min-h-8 rounded-full bg-charcoal/70 px-2 text-[11px] font-semibold text-cream disabled:opacity-50">Replace</button>
               <div className="absolute inset-x-2 bottom-2 flex justify-between">
