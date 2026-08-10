@@ -4,6 +4,7 @@ import { BrandLogo } from '@/components/ui/BrandLogo';
 const publicLinks = [
   { href: '/privacy', label: 'Privacy' },
   { href: '/terms', label: 'Terms' },
+  { href: '/community-guidelines', label: 'Community Guidelines' },
   { href: '/delete-account', label: 'Delete Account' },
   { href: '/support', label: 'Support' },
 ];

@@ -37,6 +37,8 @@ export interface DbUserLite {
   isOnboarded: boolean;
   createdAt: number;
   lastActive: number;
+  policyAcceptedVersion?: number;
+  policyAcceptedAt?: number;
 }
 
 /** Fetch the private user document by UID. Returns null if not found. */
@@ -55,7 +57,7 @@ export async function fetchUser(uid: string): Promise<DbUserLite | null> {
 export async function createUserDoc(
   uid: string,
   phone: string,
-  extra?: { phoneVerified?: boolean; phoneCountryCode?: string },
+  extra?: { phoneVerified?: boolean; phoneCountryCode?: string; policyAcceptedVersion?: number },
 ): Promise<void> {
   const ref = doc(db, USERS, uid);
   await runTransaction(db, async (tx) => {
@@ -70,6 +72,11 @@ export async function createUserDoc(
       createdAt: now,
       lastActive: now,
     };
+
+    if (extra?.policyAcceptedVersion !== undefined) {
+      payload.policyAcceptedVersion = extra.policyAcceptedVersion;
+      payload.policyAcceptedAt = now;
+    }
 
     if (phone) {
       const normalized = normalizeIndianPhone(phone);

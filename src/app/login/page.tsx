@@ -2,9 +2,11 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { signUpWithEmail, signInWithEmail } from '@/lib/auth';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { BrandLogo } from '@/components/ui/BrandLogo';
+import { TERMS_URL, PRIVACY_URL, COMMUNITY_GUIDELINES_URL } from '@/lib/policyLinks';
 import {
   DUPLICATE_PHONE_ERROR_CODE,
   DUPLICATE_PHONE_MESSAGE,
@@ -29,6 +31,7 @@ export default function LoginPage() {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [showPw, setShowPw] = useState(false); // UI-only: toggles password visibility
   const [showTimingHint, setShowTimingHint] = useState(false);
+  const [policiesAccepted, setPoliciesAccepted] = useState(false);
 
   // Already signed in (or just signed in) → route by onboarding state.
   useEffect(() => {
@@ -53,7 +56,9 @@ export default function LoginPage() {
   // Phone is required only on Create account.
   const phoneValid = isValidIndianMobile(phone);
   const phoneOk = mode === 'signin' || phoneValid;
-  const canSubmit = emailValid && passwordValid && passwordsMatch && phoneOk && !busy;
+  // Acceptance is required only in create-account mode.
+  const policiesOk = mode === 'signin' || policiesAccepted;
+  const canSubmit = emailValid && passwordValid && passwordsMatch && phoneOk && policiesOk && !busy;
   // Sign-in: someone typing a phone number into the email field — guide them,
   // do NOT attempt a phone→email lookup (see note above messageFor).
   const phoneInEmailField = mode === 'signin' && !emailValid && looksLikePhone(email);
@@ -88,6 +93,7 @@ export default function LoginPage() {
     setError(null);
     setEmailTouched(false);
     setSubmitAttempted(false);
+    setPoliciesAccepted(false);
     if (next === 'signin') setShowTimingHint(false);
   }
 
@@ -355,10 +361,37 @@ export default function LoginPage() {
                   </div>
                 )}
 
+                {/* Policy acceptance — create-account only */}
+                {mode === 'signup' && (
+                  <label className="mt-4 flex items-start gap-2.5 text-xs leading-relaxed text-ink/75">
+                    <input
+                      type="checkbox"
+                      checked={policiesAccepted}
+                      onChange={(e) => setPoliciesAccepted(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-maroon"
+                    />
+                    <span>
+                      I agree to the{' '}
+                      <Link href={TERMS_URL} target="_blank" className="font-semibold text-maroon hover:underline">
+                        Terms of Use
+                      </Link>{' '}
+                      and{' '}
+                      <Link href={COMMUNITY_GUIDELINES_URL} target="_blank" className="font-semibold text-maroon hover:underline">
+                        Community Guidelines
+                      </Link>{' '}
+                      and acknowledge the{' '}
+                      <Link href={PRIVACY_URL} target="_blank" className="font-semibold text-maroon hover:underline">
+                        Privacy Policy
+                      </Link>
+                      .
+                    </span>
+                  </label>
+                )}
+
                 {/* CTA */}
                 <button
                   type="submit"
-                  disabled={busy}
+                  disabled={busy || (mode === 'signup' && !policiesAccepted)}
                   className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-maroon px-6 py-3.5 text-sm font-semibold text-cream shadow-soft transition hover:bg-maroon-deep disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {busy && <span className="h-4 w-4 animate-spin rounded-full border-2 border-cream/40 border-t-cream" />}

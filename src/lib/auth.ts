@@ -19,12 +19,17 @@ import { auth } from './firebase';
 import { createUserDoc } from './user';
 import { setAuthMutationPending } from './authMutation';
 import { normalizeIndianPhone, releasePhoneNumber } from './phoneIndex';
+import { POLICY_VERSION } from './policyLinks';
 
 /**
  * Create a new account, then ensure the private users/{uid} doc exists.
  * `phone` (already normalised, e.g. +91XXXXXXXXXX) is stored on the PRIVATE
  * users/{uid} doc only — never on the public profiles/{uid} doc — so it is not
  * exposed on Discover/profile pages. Optional for backward compatibility.
+ *
+ * Callers must gate this behind explicit Terms/Privacy/Community Guidelines
+ * acceptance in the UI — by the time this runs, acceptance is assumed and
+ * stamped with the current POLICY_VERSION.
  */
 export async function signUpWithEmail(email: string, password: string, phone = ''): Promise<string> {
   setAuthMutationPending(true);
@@ -35,7 +40,10 @@ export async function signUpWithEmail(email: string, password: string, phone = '
     await createUserDoc(
       cred.user.uid,
       normalizedPhone?.phone ?? '',
-      phone ? { phoneVerified: false, phoneCountryCode: '+91' } : undefined,
+      {
+        ...(phone ? { phoneVerified: false, phoneCountryCode: '+91' } : {}),
+        policyAcceptedVersion: POLICY_VERSION,
+      },
     );
     return cred.user.uid;
   } catch (error) {
