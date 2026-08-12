@@ -223,9 +223,13 @@ function IntroHero({ received, sent, accepted }: { received: number; sent: numbe
 
 function IntroCard({ row }: { row: Row }) {
   const { item, side } = row;
-  const { intro, profile } = item;
+  const { intro, profile, profileStatus } = item;
   const otherId = side === 'received' ? intro.senderId : intro.recipientId;
-  const name = profile?.name || 'A member';
+  const name = profile
+    ? profile.name
+    : profileStatus === 'unavailable'
+      ? 'Profile no longer available'
+      : 'Loading…';
   const age = profile?.age && profile.age > 0 ? profile.age : null;
   const place = profile ? [profile.city, profile.state].filter(Boolean).join(', ') : '';
 
