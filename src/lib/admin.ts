@@ -25,6 +25,7 @@ import { db } from '@/lib/firebase';
 export type AdminPermission =
   | 'viewDashboard'
   | 'viewUsers'
+  | 'viewAccountPII'
   | 'viewProfiles'
   | 'manageProfiles'
   | 'viewConversations'
