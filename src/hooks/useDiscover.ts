@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchDiscoverPage, type Cursor } from '@/lib/profiles';
+import { fetchDiscoverPage, fetchDiscoverMeta, type Cursor } from '@/lib/profiles';
 import type { Profile } from '@/lib/types';
 
 export function useDiscover() {
@@ -18,7 +18,12 @@ export function useDiscover() {
     setLoading(true);
     setError(null);
     try {
-      const page = await fetchDiscoverPage(null);
+      // Fetched fresh (not cached) so a block/hide recorded elsewhere — another
+      // tab, the mobile app — during a long-lived session is honored rather
+      // than working off a stale snapshot. users/{uid} is a small doc; the
+      // extra read per page is worth the correctness guarantee.
+      const meta = await fetchDiscoverMeta();
+      const page = await fetchDiscoverPage(null, meta);
       setProfiles(page.profiles);
       cursorRef.current = page.cursor;
       setHasMore(page.hasMore);
@@ -33,7 +38,10 @@ export function useDiscover() {
     if (!hasMore || loadingMore) return;
     setLoadingMore(true);
     try {
-      const page = await fetchDiscoverPage(cursorRef.current);
+      // Re-resolved on every page for the same reason as loadInitial above —
+      // never reuse a cached blockedUids/hiddenProfileIds snapshot.
+      const meta = await fetchDiscoverMeta();
+      const page = await fetchDiscoverPage(cursorRef.current, meta);
       setProfiles((prev) => [...prev, ...page.profiles]);
       cursorRef.current = page.cursor;
       setHasMore(page.hasMore);

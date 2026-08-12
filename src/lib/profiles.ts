@@ -1,6 +1,7 @@
 // Discover data layer — uses the SAME Firestore query as the Android app:
-//   profiles where isVisible == true, orderBy createdAt desc, limit, startAfter
-// (see Android discoverService.ts). Reads only; no writes in M1.
+//   profiles where isVisible == true, gender == oppositeGender,
+//   orderBy createdAt desc, limit, startAfter
+// (see Android discoverService.ts / discoverStore.ts). Reads only; no writes in M1.
 import { auth, db } from './firebase';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import {
@@ -20,9 +21,43 @@ import {
 import type { Profile } from './types';
 
 const PROFILES = 'profiles';
+const USERS    = 'users';
 export const PAGE_SIZE = 24;
 
 export type Cursor = QueryDocumentSnapshot<DocumentData> | null;
+
+// Strict v1 male↔female matching — mirrors Android's discoverStore.ts exactly.
+// 'other', missing, or any invalid value fails closed (null) rather than
+// falling back to an unrestricted feed.
+export type OppositeGender = 'male' | 'female';
+
+function oppositeGenderOf(gender: unknown): OppositeGender | null {
+  if (gender === 'male') return 'female';
+  if (gender === 'female') return 'male';
+  return null;
+}
+
+export interface DiscoverMeta {
+  oppositeGender:   OppositeGender | null;
+  blockedUids:      string[];
+  hiddenProfileIds: string[];
+}
+
+// One-shot read of the signed-in user's own users/{uid} doc — resolves the
+// gender filter plus their personal blocked/hidden lists. Mirrors Android's
+// fetchUserDiscoverMeta. Call once per Discover session and reuse the result
+// across loadInitial/loadMore (see useDiscover.ts) rather than re-fetching
+// on every page.
+export async function fetchDiscoverMeta(): Promise<DiscoverMeta> {
+  const user = await ensureAuth();
+  const snap = await getDoc(doc(db, USERS, user.uid));
+  const data = snap.data();
+  return {
+    oppositeGender:   oppositeGenderOf(data?.gender),
+    blockedUids:      (data?.blockedUids as string[] | undefined) ?? [],
+    hiddenProfileIds: (data?.hiddenProfileIds as string[] | undefined) ?? [],
+  };
+}
 
 // Firestore Security Rules require an authenticated request. Production web auth
 // is Firebase Email + Password (see lib/auth.ts) — there is NO anonymous fallback.
@@ -76,11 +111,18 @@ export interface DiscoverPage {
   hasMore: boolean;
 }
 
-export async function fetchDiscoverPage(cursor: Cursor): Promise<DiscoverPage> {
+export async function fetchDiscoverPage(cursor: Cursor, meta: DiscoverMeta): Promise<DiscoverPage> {
+  // Fail closed: unresolvable gender ('other', missing, invalid) never falls
+  // back to an unrestricted feed — no query is issued at all, empty page.
+  if (!meta.oppositeGender) {
+    return { profiles: [], cursor: null, hasMore: false };
+  }
+
   const user = await ensureAuth();
 
   const constraints: QueryConstraint[] = [
     where('isVisible', '==', true),
+    where('gender', '==', meta.oppositeGender),
     orderBy('createdAt', 'desc'),
     limit(PAGE_SIZE),
   ];
@@ -88,10 +130,34 @@ export async function fetchDiscoverPage(cursor: Cursor): Promise<DiscoverPage> {
 
   const snap = await getDocs(query(collection(db, PROFILES), ...constraints));
 
-  // Parity with Android excludeFilter: never show the viewer their own card.
-  // (blocked/hidden filtering arrives with real auth + users/{uid} meta.)
+  const blocked = new Set(meta.blockedUids);
+  const hidden  = new Set(meta.hiddenProfileIds);
+
+  // Parity with Android excludeFilter: never show the viewer their own card,
+  // and exclude their personally blocked/hidden uids.
+  //
+  // moderationStatus === 'hidden' is ALSO excluded here client-side — verified
+  // live (2026) that Firestore Security Rules do NOT filter this out of list()
+  // query results the way they do for get(): a rule referencing resource.data
+  // (profiles/{uid}'s `moderationStatus != 'hidden'` check) is enforced for
+  // single-document get(), but a list() query matching isVisible==true +
+  // gender==X can still return a document that separately has
+  // moderationStatus=='hidden' if isVisible was left true — the rule does not
+  // retroactively prune it from query results. In practice moderationStatus
+  // is only ever set by setProfileModerationStatus() (src/lib/admin.ts), which
+  // always pairs 'hidden' with isVisible:false in the same write, so this
+  // exact combination cannot occur through normal app usage today — but nothing
+  // enforces that invariant at the rules level, so this filter is the actual
+  // safety net, not defense-in-depth. Do NOT remove it on the assumption rules
+  // already handle this.
   const profiles = snap.docs
-    .filter((d) => d.id !== user.uid)
+    .filter((d) => {
+      const data = d.data();
+      return d.id !== user.uid
+        && !blocked.has(d.id)
+        && !hidden.has(d.id)
+        && data.moderationStatus !== 'hidden';
+    })
     .map((d) => mapProfile(d.id, d.data()));
 
   return {
