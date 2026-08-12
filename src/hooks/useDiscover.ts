@@ -13,8 +13,13 @@ export function useDiscover() {
 
   const cursorRef = useRef<Cursor>(null);
   const startedRef = useRef(false);
+  // Guards against overlapping loadInitial calls — e.g. 'visibilitychange'
+  // and 'focus' both firing when the tab regains focus.
+  const inFlightRef = useRef(false);
 
   const loadInitial = useCallback(async () => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -31,6 +36,7 @@ export function useDiscover() {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+      inFlightRef.current = false;
     }
   }, []);
 
@@ -56,6 +62,24 @@ export function useDiscover() {
     if (startedRef.current) return; // guard React 18/19 StrictMode double-effect
     startedRef.current = true;
     void loadInitial();
+  }, [loadInitial]);
+
+  // Re-fetch when the tab/window becomes active again so a profile deleted
+  // or hidden by admin while this tab was backgrounded doesn't linger —
+  // no polling, just event-driven refresh on actual return-to-tab.
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') void loadInitial();
+    }
+    function handleFocus() {
+      void loadInitial();
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [loadInitial]);
 
   return { profiles, loading, loadingMore, error, hasMore, loadMore, reload: loadInitial };
