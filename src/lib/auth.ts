@@ -1,65 +1,58 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// Website authentication — Firebase Email + Password.
+// -----------------------------------------------------------------------------
+// Website authentication - Firebase Email + Password.
 //
 // Beta runs on the Firebase Spark (free) plan, which does not include Phone Auth
 // SMS. Email/Password needs no billing. It preserves the SAME uid-based
-// architecture: createUser…/signIn… return a normal Firebase Auth user whose
-// `uid` owns users/{uid} + profiles/{uid} exactly as before. Session persistence
-// is the SDK default (getAuth → IndexedDB), so login survives refresh/close.
+// architecture: createUser/signIn return a normal Firebase Auth user whose
+// uid owns users/{uid} + profiles/{uid} exactly as before. Session persistence
+// is the SDK default (getAuth -> IndexedDB), so login survives refresh/close.
 //
-// No Firestore schema or rule changes: the resulting `request.auth.uid` is an
+// No Firestore schema or rule changes: the resulting request.auth.uid is an
 // ordinary uid, so Discover / Introductions / Matches / Chats / Profile-editing
 // and Android interop are unaffected.
-// ─────────────────────────────────────────────────────────────────────────────
+// -----------------------------------------------------------------------------
 
 import {
-  createUserWithEmailAndPassword, deleteUser, signInWithEmailAndPassword, signOut,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut,
 } from 'firebase/auth';
 import { auth } from './firebase';
+import {
+  completeSignInBootstrap,
+  completeSignupBootstrap,
+} from './authBootstrap';
 import { createUserDoc } from './user';
 import { setAuthMutationPending } from './authMutation';
-import { normalizeIndianPhone, releasePhoneNumber } from './phoneIndex';
+import { normalizeIndianPhone } from './phoneIndex';
 import { POLICY_VERSION } from './policyLinks';
 
 /**
  * Create a new account, then ensure the private users/{uid} doc exists.
  * `phone` (already normalised, e.g. +91XXXXXXXXXX) is stored on the PRIVATE
- * users/{uid} doc only — never on the public profiles/{uid} doc — so it is not
+ * users/{uid} doc only - never on the public profiles/{uid} doc - so it is not
  * exposed on Discover/profile pages. Optional for backward compatibility.
  *
  * Callers must gate this behind explicit Terms/Privacy/Community Guidelines
- * acceptance in the UI — by the time this runs, acceptance is assumed and
+ * acceptance in the UI - by the time this runs, acceptance is assumed and
  * stamped with the current POLICY_VERSION.
  */
 export async function signUpWithEmail(email: string, password: string, phone = ''): Promise<string> {
   setAuthMutationPending(true);
-  let cred: Awaited<ReturnType<typeof createUserWithEmailAndPassword>> | null = null;
   const normalizedPhone = phone ? normalizeIndianPhone(phone) : null;
   try {
-    cred = await createUserWithEmailAndPassword(auth, email, password);
-    await createUserDoc(
-      cred.user.uid,
+    const { uid } = await completeSignupBootstrap(
+      {
+        createAuthUser: () => createUserWithEmailAndPassword(auth, email, password),
+        createUserDoc,
+        signOut: () => signOut(auth),
+        getUid: (user) => user.uid,
+      },
       normalizedPhone?.phone ?? '',
       {
         ...(phone ? { phoneVerified: false, phoneCountryCode: '+91' } : {}),
         policyAcceptedVersion: POLICY_VERSION,
       },
     );
-    return cred.user.uid;
-  } catch (error) {
-    if (cred?.user) {
-      await releasePhoneNumber(cred.user.uid, normalizedPhone?.phoneKey).catch(() => {});
-      try {
-        await deleteUser(cred.user);
-      } catch {
-        try {
-          await signOut(auth);
-        } catch {
-          // Best effort cleanup only; preserve the original signup error.
-        }
-      }
-    }
-    throw error;
+    return uid;
   } finally {
     setAuthMutationPending(false);
   }
@@ -67,9 +60,12 @@ export async function signUpWithEmail(email: string, password: string, phone = '
 
 /** Sign in an existing account. createUserDoc is idempotent (no-op if present). */
 export async function signInWithEmail(email: string, password: string): Promise<string> {
-  const cred = await signInWithEmailAndPassword(auth, email, password);
-  await createUserDoc(cred.user.uid, '');
-  return cred.user.uid;
+  const { uid } = await completeSignInBootstrap({
+    signIn: () => signInWithEmailAndPassword(auth, email, password),
+    createUserDoc,
+    getUid: (user) => user.uid,
+  });
+  return uid;
 }
 
 /** Sign out. */
