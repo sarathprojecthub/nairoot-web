@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useUid } from './useUid';
 import { subscribeReceived, subscribeSent, type Introduction } from '@/lib/introductions';
+import { filterMemberVisibleIntroductions } from '@/lib/memberIntroductionVisibility';
 import { fetchProfile } from '@/lib/profiles';
 import type { Profile } from '@/lib/types';
 
@@ -26,16 +27,15 @@ export function useIntroductions() {
   const [sentPending, setSentPending] = useState<Introduction[]>([]);
   const [sentAccepted, setSentAccepted] = useState<Introduction[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile | null>>({});
-  const [loading, setLoading] = useState(true);
+  const [listenerPhase, setListenerPhase] = useState<{ uid: string | null; delivered: number }>({ uid: null, delivered: 0 });
   const fetchingRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!uid) return;
-    setLoading(true);
     let delivered = 0;
     const mark = () => {
       delivered += 1;
-      if (delivered >= 4) setLoading(false);
+      setListenerPhase({ uid, delivered });
     };
     const unsubs = [
       subscribeReceived(uid, 'pending', (x) => { setRecvPending(x); mark(); }),
@@ -76,16 +76,19 @@ export function useIntroductions() {
     return profiles[id] ? 'loaded' : 'unavailable';
   };
 
-  const received: IntroItem[] = [...recvPending, ...recvAccepted].map((intro) => ({
+  const receivedAll: IntroItem[] = [...recvPending, ...recvAccepted].map((intro) => ({
     intro,
     profile: profiles[intro.senderId] ?? null,
     profileStatus: resolveStatus(intro.senderId),
   }));
-  const sent: IntroItem[] = [...sentPending, ...sentAccepted].map((intro) => ({
+  const sentAll: IntroItem[] = [...sentPending, ...sentAccepted].map((intro) => ({
     intro,
     profile: profiles[intro.recipientId] ?? null,
     profileStatus: resolveStatus(intro.recipientId),
   }));
+  const received = filterMemberVisibleIntroductions(receivedAll);
+  const sent = filterMemberVisibleIntroductions(sentAll);
+  const loading = !!uid && (listenerPhase.uid !== uid || listenerPhase.delivered < 4);
 
   return { received, sent, loading };
 }

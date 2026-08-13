@@ -3,6 +3,11 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useIntroductions, type IntroItem } from '@/hooks/useIntroductions';
+import {
+  countMemberVisibleIntroductions,
+  countVisibleSentActivity,
+  type MemberVisibleRow,
+} from '@/lib/memberIntroductionVisibility';
 import { acceptIntroduction, declineIntroduction } from '@/lib/introductions';
 import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { PageSpinner } from '@/components/ui/Loading';
@@ -48,20 +53,13 @@ export default function IntroductionsPage() {
   const [sort, setSort] = useState<SortId>('recent');
   const [search, setSearch] = useState('');
 
-  const allRows: Row[] = useMemo(() => [
+  const allRows: MemberVisibleRow[] = useMemo(() => [
     ...received.map((item): Row => ({ item, side: 'received' })),
     ...sent.map((item): Row => ({ item, side: 'sent' })),
   ], [received, sent]);
 
-  const counts = useMemo(() => ({
-    all: allRows.length,
-    received: received.filter((i) => i.intro.status === 'pending').length,
-    sent: sent.filter((i) => i.intro.status === 'pending').length,
-    accepted: allRows.filter((r) => r.item.intro.status === 'accepted').length,
-  }), [allRows, received, sent]);
-
-  const sentTotal = sent.length;
-  const sentAcceptedCount = sent.filter((i) => i.intro.status === 'accepted').length;
+  const counts = useMemo(() => countMemberVisibleIntroductions(allRows), [allRows]);
+  const { sentTotal, sentAccepted: sentAcceptedCount } = useMemo(() => countVisibleSentActivity(sent), [sent]);
 
   const rows = useMemo(() => {
     let list = allRows;

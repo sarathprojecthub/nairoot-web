@@ -1,33 +1,25 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BrandLogo } from '@/components/ui/BrandLogo';
-import { useUid } from '@/hooks/useUid';
-import { useSentInterests } from '@/hooks/useSentInterests';
+import { useIntroductions } from '@/hooks/useIntroductions';
 import { usePendingIntroductions } from '@/components/PendingIntroductionsProvider';
-import { subscribeSent, subscribeReceived } from '@/lib/introductions';
 
 // Shared authenticated left sidebar — rendered once by the (app) shell so the
 // brand, nav, activity stats and premium card stay consistent across Discover,
 // Introductions, Chats, Premium and Profile (desktop only; mobile uses AppHeader).
 export function AppSidebar() {
   const pathname = usePathname() ?? '';
-  const uid = useUid();
+  const { received: visibleReceived, sent: visibleSent } = useIntroductions();
   const { count: pending } = usePendingIntroductions(); // received pending (real)
-  const { sentTo } = useSentInterests();                 // sent pending (real)
 
-  // Matches = accepted introductions (both directions). Cheap, indexed listeners.
-  const [matches, setMatches] = useState(0);
-  useEffect(() => {
-    if (!uid) { setMatches(0); return; }
-    let s = 0;
-    let r = 0;
-    const us = subscribeSent(uid, 'accepted', (x) => { s = x.length; setMatches(s + r); });
-    const ur = subscribeReceived(uid, 'accepted', (x) => { r = x.length; setMatches(s + r); });
-    return () => { us(); ur(); };
-  }, [uid]);
+  const visiblePending = visibleReceived.filter((item) => item.intro.status === 'pending').length;
+  const visibleSentPending = visibleSent.filter((item) => item.intro.status === 'pending').length;
+  const visibleMatches =
+    visibleReceived.filter((item) => item.intro.status === 'accepted').length +
+    visibleSent.filter((item) => item.intro.status === 'accepted').length;
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
@@ -61,9 +53,9 @@ export function AppSidebar() {
           <span className="text-[11px] text-muted">At a glance</span>
         </div>
         <dl className="mt-3 space-y-2.5">
-          <ActivityRow label="Likes sent" value={sentTo.size} />
-          <ActivityRow label="Interested in you" value={pending} />
-          <ActivityRow label="Matches" value={matches} />
+          <ActivityRow label="Likes sent" value={visibleSentPending} />
+          <ActivityRow label="Interested in you" value={visiblePending} />
+          <ActivityRow label="Matches" value={visibleMatches} />
         </dl>
         <p className="mt-3 text-[11px] leading-relaxed text-muted">Counts update live as members respond.</p>
       </div>
