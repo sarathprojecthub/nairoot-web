@@ -1,5 +1,13 @@
 import { onAuthStateChanged, type User } from 'firebase/auth';
 
+export function defaultBrowserFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
+    return window.fetch(input, init);
+  }
+
+  return globalThis.fetch(input, init);
+}
+
 export type ResolvedAdminAuthState =
   | { kind: 'authenticated'; user: User }
   | { kind: 'unauthenticated' };
@@ -19,7 +27,7 @@ async function defaultDeps(): Promise<AdminApiAuthDeps> {
   return {
     getCurrentUser: () => auth.currentUser,
     onAuthStateChanged: (callback) => onAuthStateChanged(auth, callback),
-    fetchImpl: fetch,
+    fetchImpl: defaultBrowserFetch,
   };
 }
 

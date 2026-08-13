@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   authenticatedAdminFetch,
+  defaultBrowserFetch,
   waitForResolvedAdminAuth,
   type AdminApiAuthDeps,
 } from '@/lib/adminApiAuth';
@@ -34,6 +35,45 @@ function makeDeps(overrides: Partial<AdminApiAuthDeps> = {}): AdminApiAuthDeps {
     ...overrides,
   };
 }
+
+test('default browser fetch wrapper preserves Window binding for native-style fetch implementations', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalWindow = globalThis.window;
+
+  const fakeWindow = {
+    fetch(this: unknown, input: RequestInfo | URL, init?: RequestInit) {
+      void input;
+      void init;
+      if (this !== fakeWindow) {
+        throw new TypeError('Illegal invocation');
+      }
+      return Promise.resolve(new Response(null, { status: 204 }));
+    },
+  } as typeof globalThis.window & { fetch: typeof fetch };
+
+  Object.defineProperty(globalThis, 'window', {
+    value: fakeWindow,
+    configurable: true,
+  });
+  Object.defineProperty(globalThis, 'fetch', {
+    value: fakeWindow.fetch,
+    configurable: true,
+  });
+
+  try {
+    const response = await defaultBrowserFetch('https://example.com/api/admin/users');
+    assert.equal(response.status, 204);
+  } finally {
+    Object.defineProperty(globalThis, 'fetch', {
+      value: originalFetch,
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, 'window', {
+      value: originalWindow,
+      configurable: true,
+    });
+  }
+});
 
 test('auth resolves with authenticated user and request carries Bearer token', async () => {
   const { user, tokenCalls } = makeUser(['token-1']);
