@@ -1,4 +1,4 @@
-import type { User } from 'firebase/auth';
+import { authenticatedAdminFetch } from '@/lib/adminApiAuth';
 
 export type DirectoryFilter =
   | 'all'
@@ -60,7 +60,6 @@ function readErrorMessage(payload: unknown, fallback: string): string {
 }
 
 export async function fetchAdminDirectory(
-  user: User,
   params: {
     filter?: DirectoryFilter;
     pageToken?: string | null;
@@ -70,8 +69,8 @@ export async function fetchAdminDirectory(
     phone?: string;
   },
   signal?: AbortSignal,
+  authenticatedFetchImpl: typeof authenticatedAdminFetch = authenticatedAdminFetch,
 ): Promise<AdminDirectoryClientResult> {
-  const token = await user.getIdToken();
   const url = new URL('/api/admin/users', window.location.origin);
   if (params.filter) url.searchParams.set('filter', params.filter);
   if (params.pageToken) url.searchParams.set('pageToken', params.pageToken);
@@ -80,14 +79,16 @@ export async function fetchAdminDirectory(
   if (params.email) url.searchParams.set('email', params.email);
   if (params.phone) url.searchParams.set('phone', params.phone);
 
-  const response = await fetch(url.toString(), {
+  const authResult = await authenticatedFetchImpl(url.toString(), {
     method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     cache: 'no-store',
     signal,
   });
+  if (authResult.kind === 'unauthenticated') {
+    return { kind: 'unauthorized', message: 'Authentication required.' };
+  }
+
+  const { response } = authResult;
 
   let payload: unknown = null;
   try {

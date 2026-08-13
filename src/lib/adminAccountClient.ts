@@ -1,4 +1,4 @@
-import type { User } from 'firebase/auth';
+import { authenticatedAdminFetch } from '@/lib/adminApiAuth';
 
 export interface AdminAccountMetadata {
   uid: string;
@@ -36,18 +36,19 @@ function readErrorMessage(payload: unknown, fallback: string): string {
 
 export async function fetchAdminAccountMetadata(
   uid: string,
-  user: User,
   signal?: AbortSignal,
+  authenticatedFetchImpl: typeof authenticatedAdminFetch = authenticatedAdminFetch,
 ): Promise<AdminAccountClientResult> {
-  const token = await user.getIdToken();
-  const response = await fetch(`/api/admin/users/${encodeURIComponent(uid)}/account`, {
+  const authResult = await authenticatedFetchImpl(`/api/admin/users/${encodeURIComponent(uid)}/account`, {
     method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     cache: 'no-store',
     signal,
   });
+  if (authResult.kind === 'unauthenticated') {
+    return { kind: 'unauthorized', message: 'Authentication required.' };
+  }
+
+  const { response } = authResult;
 
   let payload: unknown = null;
   try {

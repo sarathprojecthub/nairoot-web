@@ -43,7 +43,7 @@ export default function AdminUsersPage() {
 }
 
 function UsersDirectory() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [filter, setFilter] = useState<DirectoryFilter>('all');
   const [searchMode, setSearchMode] = useState<SearchMode>('uid');
   const [searchValue, setSearchValue] = useState('');
@@ -66,6 +66,10 @@ function UsersDirectory() {
     const controller = new AbortController();
 
     async function load() {
+      if (authLoading) {
+        return;
+      }
+
       if (!user) {
         setDirectory({ kind: 'unauthorized', message: 'Authentication required.' });
         return;
@@ -75,15 +79,13 @@ function UsersDirectory() {
       setPageToken(null);
 
       try {
-        const result = await fetchAdminDirectory(
-          user,
-          {
-            filter,
-            pageSize: 25,
-            uid: activeQuery.uid || undefined,
-            email: activeQuery.email || undefined,
-            phone: activeQuery.phone || undefined,
-          },
+        const result = await fetchAdminDirectory({
+          filter,
+          pageSize: 25,
+          uid: activeQuery.uid || undefined,
+          email: activeQuery.email || undefined,
+          phone: activeQuery.phone || undefined,
+        },
           controller.signal,
         );
         if (!alive) return;
@@ -100,13 +102,13 @@ function UsersDirectory() {
       alive = false;
       controller.abort();
     };
-  }, [activeQuery.email, activeQuery.phone, activeQuery.uid, filter, user]);
+  }, [activeQuery.email, activeQuery.phone, activeQuery.uid, authLoading, filter, user]);
 
   async function loadMore() {
-    if (!user || !pageToken || directory.kind !== 'success') return;
+    if (authLoading || !user || !pageToken || directory.kind !== 'success') return;
     setLoadingMore(true);
     try {
-      const result = await fetchAdminDirectory(user, {
+      const result = await fetchAdminDirectory({
         filter,
         pageSize: directory.data.pageSize,
         pageToken,

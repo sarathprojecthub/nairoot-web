@@ -74,7 +74,7 @@ export default function AdminMemberMirrorPage({ params }: { params: Promise<{ ui
 }
 
 function MemberOperationsConsole({ admin, uid }: { admin: AdminRecord; uid: string }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [mirror, setMirror] = useState<MemberMirrorData | null>(null);
   const [participants, setParticipants] = useState<Record<string, ParticipantInfo>>({});
   const [accountState, setAccountState] = useState<AdminAccountClientResult | { kind: 'loading' }>({ kind: 'loading' });
@@ -130,6 +130,10 @@ function MemberOperationsConsole({ admin, uid }: { admin: AdminRecord; uid: stri
     const controller = new AbortController();
 
     async function loadAccountMetadata() {
+      if (authLoading) {
+        return;
+      }
+
       if (!user) {
         setAccountState({ kind: 'unauthorized', message: 'Authentication required.' });
         return;
@@ -137,7 +141,7 @@ function MemberOperationsConsole({ admin, uid }: { admin: AdminRecord; uid: stri
 
       setAccountState({ kind: 'loading' });
       try {
-        const result = await fetchAdminAccountMetadata(uid, user, controller.signal);
+        const result = await fetchAdminAccountMetadata(uid, controller.signal);
         if (alive) setAccountState(result);
       } catch (err) {
         if (!alive || controller.signal.aborted) return;
@@ -153,7 +157,7 @@ function MemberOperationsConsole({ admin, uid }: { admin: AdminRecord; uid: stri
       alive = false;
       controller.abort();
     };
-  }, [uid, user]);
+  }, [authLoading, uid, user]);
 
   async function runProfileAction(action: 'hide' | 'unhide' | 'review') {
     if (!mirror?.member.profileDoc) return;
