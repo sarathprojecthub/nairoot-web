@@ -5,6 +5,7 @@ import {
   countVisibleSentActivity,
   filterMemberVisibleIntroductions,
   isMemberVisibleIntroduction,
+  isRespondableReceivedIntroduction,
   type MemberVisibleRow,
 } from '@/lib/memberIntroductionVisibility';
 import type { IntroItem } from '@/hooks/useIntroductions';
@@ -67,4 +68,23 @@ test('all, received, sent, accepted, and activity counts exclude unavailable int
     sentTotal: 2,
     sentAccepted: 1,
   });
+});
+
+test('received introduction controls appear only for the current pending recipient', () => {
+  assert.equal(isRespondableReceivedIntroduction(null, 'me'), false);
+  assert.equal(isRespondableReceivedIntroduction({
+    status: 'pending',
+    senderId: 'other',
+    recipientId: 'me',
+  }, 'me'), true);
+  assert.equal(isRespondableReceivedIntroduction({
+    status: 'pending',
+    senderId: 'me',
+    recipientId: 'other',
+  }, 'me'), false);
+  assert.equal(isRespondableReceivedIntroduction({
+    status: 'accepted',
+    senderId: 'other',
+    recipientId: 'me',
+  }, 'me'), false);
 });

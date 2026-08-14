@@ -14,6 +14,12 @@ export interface MemberIntroductionCounts {
   accepted: number;
 }
 
+export interface RespondableIntroductionLike {
+  status: string;
+  senderId: string;
+  recipientId: string;
+}
+
 export function isMemberVisibleIntroduction(item: Pick<IntroItem, 'profileStatus'>): boolean {
   return item.profileStatus !== 'unavailable';
 }
@@ -36,4 +42,15 @@ export function countVisibleSentActivity(items: IntroItem[]) {
     sentTotal: items.length,
     sentAccepted: items.filter((item) => item.intro.status === 'accepted').length,
   };
+}
+
+export function isRespondableReceivedIntroduction<T extends RespondableIntroductionLike>(
+  intro: T | null | undefined,
+  currentUid: string | null | undefined,
+): boolean {
+  return !!intro
+    && !!currentUid
+    && intro.status === 'pending'
+    && intro.recipientId === currentUid
+    && intro.senderId !== currentUid;
 }

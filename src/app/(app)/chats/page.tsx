@@ -5,6 +5,7 @@ import { useConversations } from '@/hooks/useConversations';
 import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { PageSpinner } from '@/components/ui/Loading';
 import { SectionHeader } from '@/components/ui/SectionHeader';
+import { getMemberConversationFallback } from '@/lib/memberConversationVisibility';
 
 function timeShort(ms: number): string {
   if (!ms) return '';
@@ -45,8 +46,9 @@ export default function ChatsPage() {
         </div>
       ) : (
         <ul className="divide-y divide-line overflow-hidden rounded-3xl border border-line bg-cream shadow-soft">
-          {items.map(({ conversation, other, otherUid, unread }) => {
-            const name = other?.name || 'A member';
+          {items.map(({ conversation, other, otherUid, unread, profileStatus }) => {
+            const fallback = getMemberConversationFallback(profileStatus);
+            const name = other?.name || fallback.name;
             const last = conversation.lastMessage;
             return (
               <li key={conversation.id}>
@@ -58,7 +60,7 @@ export default function ChatsPage() {
                       <span className="shrink-0 text-xs text-muted">{timeShort(conversation.updatedAt)}</span>
                     </div>
                     <p className={`truncate text-sm ${unread > 0 ? 'font-medium text-ink' : 'text-muted'}`}>
-                      {last ? last.text : 'Conversation started'}
+                      {last ? last.text : fallback.meta}
                     </p>
                   </div>
                   {unread > 0 && (

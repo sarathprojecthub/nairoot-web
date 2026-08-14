@@ -2,13 +2,13 @@
 // `conversations`, and `matches` collections, mirroring the Android
 // introductionService exactly so Website ↔ Android interoperate.
 import { db } from './firebase';
+import { selectRelationshipIntroduction } from './introductionSelection';
 import { ensureAuth } from './profiles';
 import {
   collection,
   query,
   where,
   orderBy,
-  limit,
   getDoc,
   getDocs,
   addDoc,
@@ -50,8 +50,6 @@ function mapIntro(id: string, d: DocumentData): Introduction {
   };
 }
 
-const statusPriority = (s: string) => (s === 'accepted' ? 0 : s === 'pending' ? 1 : 2);
-
 // ─── Duplicate-prevention + send (M2) ────────────────────────────────────────
 
 export async function fetchIntroductionBetween(
@@ -59,13 +57,11 @@ export async function fetchIntroductionBetween(
   otherUid: string,
 ): Promise<Introduction | null> {
   const [sentSnap, recvSnap] = await Promise.all([
-    getDocs(query(collection(db, INTRODUCTIONS), where('senderId', '==', uid), where('recipientId', '==', otherUid), limit(1))),
-    getDocs(query(collection(db, INTRODUCTIONS), where('senderId', '==', otherUid), where('recipientId', '==', uid), limit(1))),
+    getDocs(query(collection(db, INTRODUCTIONS), where('senderId', '==', uid), where('recipientId', '==', otherUid))),
+    getDocs(query(collection(db, INTRODUCTIONS), where('senderId', '==', otherUid), where('recipientId', '==', uid))),
   ]);
   const docs = [...sentSnap.docs, ...recvSnap.docs].map((d) => mapIntro(d.id, d.data()));
-  if (docs.length === 0) return null;
-  docs.sort((a, b) => statusPriority(a.status) - statusPriority(b.status) || b.sentAt - a.sentAt);
-  return docs[0];
+  return selectRelationshipIntroduction(docs, uid, otherUid);
 }
 
 // `note` intentionally OMITTED (Android fix + isValidIntroduction rule).
